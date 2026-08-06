@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Ksleephead
+// SPDX-License-Identifier: GPL-3.0-only
+
 package com.tankM6n;
 
 import org.springframework.cglib.core.Local;
