@@ -1,6 +1,6 @@
 # fx17
 
-一个基于 Java 17、JavaFX 和 Maven 的桌面自动化项目。
+scum炼体软件
 
 ## 构建环境
 
