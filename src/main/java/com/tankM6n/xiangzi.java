@@ -1,0 +1,796 @@
+package com.tankM6n;
+
+import org.springframework.cglib.core.Local;
+
+import java.awt.*;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
+import java.time.LocalDateTime;
+import java.util.concurrent.*;
+
+
+public class xiangzi extends Thread {
+    // 添加6个double类型的成员变量
+
+    private double restAfterHits;      // 砸箱子多少下后休息  3
+    private double repairGlovesAfter;  // 体力耗尽后多少下后修手套 4
+    private double drinkWaterAfter;    // 体力耗尽后多少下后喝水 8
+    private double timePerHit;         // 砸一次箱子时间（单位：秒）35
+    private double recoveryTime;       // 体力恢复时间（单位：秒） 65
+    private boolean dropInsteadDestroy = false; // 是否丢下而不是摧毁（新增复选框状态）
+    private String insideGameOrNot = "default";
+    private String restType;              // 传递休息类型参数
+    // 新增咖啡因相关成员变量
+    private double caffeineMgValue;          // 当前已吸收咖啡因（毫克）
+    private boolean enableAutoCaffeine; // 是否启用自动吃咖啡粉
+
+    private volatile boolean running;
+    private boolean enableAutoEat;     // 是否启用自动吃饭
+
+    private boolean coffeeCheck = true;
+    long eatCoffeeTime;
+
+    long start;
+    Robot robot;
+
+    private ExecutorService executor;
+
+    // 添加构造方法接收6个double参数
+
+    public xiangzi(double restAfterHits, double repairGlovesAfter, double drinkWaterAfter, double timePerHit, double recoveryTime, boolean dropInsteadDestroy, String restType, boolean enableAutoCaffeine, double caffeineMgValue, boolean enableAutoEat, String insideGameOrNot, ExecutorService executor) {
+        this.restAfterHits = restAfterHits;
+        this.repairGlovesAfter = repairGlovesAfter;
+        this.drinkWaterAfter = drinkWaterAfter;
+        this.timePerHit = timePerHit;
+        this.recoveryTime = recoveryTime;
+        this.dropInsteadDestroy = dropInsteadDestroy;
+        this.restType = restType;
+        this.caffeineMgValue = caffeineMgValue;
+        this.enableAutoCaffeine = enableAutoCaffeine;
+        this.enableAutoEat = enableAutoEat;
+        this.insideGameOrNot = insideGameOrNot;
+        this.executor = executor;
+    }
+
+    @Override
+    public void run() {
+        try {
+            robot = new Robot();
+            running = true;
+            zaxiangzi();
+        } catch (InterruptedException e) {
+            running = false;
+        } catch (Exception e) {
+            if (running) {
+                throw new RuntimeException(e);
+            }
+        } finally {
+            running = false;
+            releaseKeys();
+        }
+    }
+
+    private void ensureRunning() throws InterruptedException {
+        if (!running || Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException("training stopped");
+        }
+    }
+
+    private void safeDelay(long millis) throws InterruptedException {
+        long end = System.currentTimeMillis() + Math.max(0, millis);
+        while (System.currentTimeMillis() < end) {
+            ensureRunning();
+            Thread.sleep(Math.min(100, end - System.currentTimeMillis()));
+        }
+        ensureRunning();
+    }
+
+    private void releaseKeys() {
+        if (robot == null) {
+            return;
+        }
+        int[] keys = {
+                KeyEvent.VK_ALT, KeyEvent.VK_TAB, KeyEvent.VK_W, KeyEvent.VK_C,
+                KeyEvent.VK_X, KeyEvent.VK_0, KeyEvent.VK_1, KeyEvent.VK_3,
+                KeyEvent.VK_4, KeyEvent.VK_5, KeyEvent.VK_8
+        };
+        for (int key : keys) {
+            try {
+                robot.keyRelease(key);
+            } catch (Exception ignored) {
+            }
+        }
+        try {
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private boolean checkcIntestine() {
+        Color intestinelColor = getPixelColor(803, 556); //肠道的50%
+
+        int blue = intestinelColor.getBlue();
+        int red = intestinelColor.getRed();
+        int green = intestinelColor.getGreen();
+
+
+        if ((blue > 35 && blue < 60)
+                && (red > 35 && red < 60)
+                && (green > 35 && green < 60)) {
+            //是黑色，那就可以吃
+            return true;
+        }
+        //不让吃
+        return false;
+    }
+
+    private boolean checkWater() {
+        Color intestinelColor = getPixelColor(932, 102); //水的20%
+
+        int blue = intestinelColor.getBlue();
+
+
+        if (blue < 55) {
+            //是黑色，那就可以吃
+            return true;
+        }
+        //不让吃
+        return false;
+    }
+
+    public boolean checkCoffeeSecend() throws InterruptedException {
+        tabSwitch();//打开tab
+        robot.keyPress(KeyEvent.VK_4);
+        safeDelay(50);
+        robot.keyRelease(KeyEvent.VK_4);
+        System.out.println("开始执行Coffee二次校验");
+        boolean rst = false;
+        moveMouseForInfoWithRetry(0);
+        safeDelay(500);
+        //判断力右边的竖线像素点是不是绿色的
+        Color coffeeColor = getPixelColor(155, 431);
+        int green = coffeeColor.getGreen();
+
+
+
+        System.out.println("g值" + green + "/" + LocalDateTime.now());
+        if (green > 50) {
+            //是绿色，还有咖啡
+            rst = false;
+        } else {
+            //黑色,没咖啡了
+            rst = true;
+        }
+        tabSwitch();//关闭tab
+        return rst;
+    }
+
+    private void moveMouseForInfoWithRetry(int retryCount) {
+        // 移动鼠标
+        moveMouseCoffeeInfo();
+        // 检测移动后，信息框是否正确打开
+        Color dazi = getPixelColor(54, 354);
+        boolean needRetry = dazi.getGreen() < 80;
+        if (needRetry) {
+            if (retryCount >= 3) {
+                System.out.println("已达到最大重试次数，停止移动鼠标");
+                return;
+            }
+            System.out.println("信息框未正确打开，第 "
+                    + retryCount
+                    + " 次重试");
+            moveMouseForInfoWithRetry(retryCount + 1);
+        }
+    }
+
+    public Future<Integer> checkCoffee() {
+
+        Future<Integer> future = executor.submit(() -> {
+            //1、先检测横线最右侧的绿色边界像素点边界值  y轴是464开始 x轴范围183-320
+            Color pixelColor;
+            int x = 0;
+            //找到突然变黑的坐标
+            for (int i = 183; i <= 342; i++) {//183-342是性能指数从左到右边的x轴坐标 ,这里做一个版本的省性能版本
+                //锁定鼠标
+                robot.mouseMove(0 , 0);
+                pixelColor = getPixelColor(i, 464);
+                if (pixelColor.getGreen() < 100){//突然变黑了
+                    x = i - 1;
+                    System.out.println(x + "是边界值" + LocalDateTime.now());
+                    break;
+                }
+                robot.mouseMove(0 , 0);
+            }
+            //默认返回不需要吃咖啡粉
+            return x;
+        });
+        return future;
+    }
+    public Future<Integer> checkCoffeeV2() throws InterruptedException {
+        Future<Integer> rst = executor.submit(() -> {
+            long start = System.currentTimeMillis();
+            // 进度条起始 X 坐标，绿色区域位于这一侧
+            final int startX = 182;
+            // 进度条结束 X 坐标，黑色区域位于这一侧
+            final int endX = 319;
+            // 进度条所在的 Y 坐标
+            int y = 464;
+            // 截图宽度，包含 183 和 342
+            final int width = endX - startX + 1;
+            // 将鼠标移开，避免鼠标遮挡或触发悬浮信息框
+            robot.mouseMove(0, 0);
+            safeDelay(50);
+            robot.keyPress(KeyEvent.VK_4);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_4);
+            safeDelay(500);
+            // 一次性截取整条进度线，避免反复调用 getPixelColor()
+            BufferedImage image = robot.createScreenCapture(
+                    new Rectangle(startX, y, width, 1)
+            );
+            // 二分查找左边界，使用截图内部坐标
+            int left = 0;
+            // 二分查找右边界
+            int right = width - 1;
+            // 查找第一个黑色像素
+            while (left < right) {
+                // 获取中间位置
+                int middle = (left + right) >>> 1;
+                // 获取中间像素的 RGB 整数值
+                int rgb = image.getRGB(middle, 0);
+                // 从 RGB 中提取绿色通道，范围为 0~255
+                int green = (rgb >>> 8) & 0xFF;
+                // 绿色值大于等于 100，认为当前像素是绿色
+                if (green >= 100) {
+                    // 当前是绿色，第一个黑色像素一定在右侧
+                    left = middle + 1;
+                    y = 463;
+                } else {
+                    // 当前是黑色，它可能就是第一个黑色像素
+                    right = middle;
+                }
+            }
+            // left 是第一个黑色像素的截图内坐标
+            // 转换成屏幕坐标后减 1，得到最后一个绿色像素坐标
+            int boundaryX = startX + left - 1;
+            System.out.println(
+                    boundaryX + " 是绿色边界值，检测时间：" + LocalDateTime.now()
+            );
+            System.out.println("检测咖啡因含量耗时：" + (System.currentTimeMillis() - start) + "ms");
+            // 返回最后一个绿色像素的屏幕 X 坐标
+            return boundaryX;
+        });
+        safeDelay(1000);
+        return rst;
+    }
+
+    private void moveMouseCoffeeInfo() {
+        robot.delay(300);
+        robot.mouseMove(13, 310);
+        robot.delay(10);
+        robot.mouseMove(13, 311);
+        robot.delay(10);
+        robot.mouseMove(13, 312);
+        robot.delay(10);
+        robot.mouseMove(13, 313);
+        robot.delay(10);
+        robot.mouseMove(13, 314);
+        robot.delay(1500);
+    }
+
+    public boolean checkStomach() {
+        Color stomachlColor = getPixelColor(717, 556); //大概是胃的50%
+        int blue = stomachlColor.getBlue();
+        int red = stomachlColor.getRed();
+        int green = stomachlColor.getGreen();
+
+        if ((blue > 35 && blue < 60)
+                && (red > 35 && red < 60)
+                && (green > 35 && green < 60)) {
+            //是黑色，那就可以吃
+            return true;
+        }
+        //不让吃
+        return false;
+    }
+    public boolean checkNengLiang() {
+        Color stomachlColor = getPixelColor(765, 29);
+        int blue = stomachlColor.getBlue();
+
+        if (blue > 90) {
+            System.out.println(LocalDateTime.now() + "能量充足");
+            //是蓝色，那就不需要吃东西
+            return false;
+        }
+        //默认需要吃
+        return true;
+    }
+    public boolean checkDanBaiZhi() {
+        Color stomachlColor = getPixelColor(700, 150);
+        int blue = stomachlColor.getBlue();
+
+        if (blue > 90) {
+            System.out.println(LocalDateTime.now() + "蛋白质充足");
+            //是蓝色，那就不需要吃东西
+            return false;
+        }
+        //默认需要吃
+        return true;
+    }
+
+    public Color getPixelColor(int x, int y) {
+        long end = System.currentTimeMillis() + 300;
+        while (System.currentTimeMillis() < end) {
+            if (!running || Thread.currentThread().isInterrupted()) {
+                return Color.BLACK;
+            }
+            try {
+                Thread.sleep(Math.min(50, end - System.currentTimeMillis()));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return Color.BLACK;
+            }
+        }
+        Color pixelColor = robot.getPixelColor(x, y);
+        return pixelColor;
+    }
+
+    public void zaxiangzi() throws AWTException, ExecutionException, InterruptedException {
+        start = System.currentTimeMillis();
+
+        if ("default".equals(insideGameOrNot)){
+            qieping(robot);
+        } else if ("restart".equals(insideGameOrNot)) {
+            recoveryTab(robot);
+            //站起来
+            ensureRunning();
+            robot.keyPress(KeyEvent.VK_W);
+            safeDelay(300);
+            robot.keyRelease(KeyEvent.VK_W);
+            safeDelay(4 * 1000);
+        } else if ("inGame".equals(insideGameOrNot)) {
+            safeDelay(2 * 1000);
+        }
+
+        //打开聊天框
+        robot.keyPress(KeyEvent.VK_T);
+        safeDelay(50);
+        robot.keyRelease(KeyEvent.VK_T);
+        safeDelay(300);
+        //切屏完成开始训练前，先检测聊天是否静音
+        Color chatColor = getPixelColor(52, 347);
+        if (chatColor.getRed() < 100 && chatColor.getGreen() < 100 && chatColor.getBlue() < 100) {
+            //未静音状态
+            robot.mouseMove(32,353);
+            safeDelay(10);
+            robot.mouseMove(32,356);
+            safeDelay(300);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            safeDelay(100);
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            safeDelay(300);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            safeDelay(100);
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            safeDelay(1000);
+            robot.mouseMove(1024/2,768/2);
+            safeDelay(1000);
+        }
+        //关闭聊天框
+        robot.keyPress(KeyEvent.VK_ESCAPE);
+        safeDelay(500);
+        robot.keyRelease(KeyEvent.VK_ESCAPE);
+        safeDelay(1000);
+
+
+        int lastEdge = 0;
+        for (int i = 0; i < Integer.MAX_VALUE && running; i++) {
+            if (!running) {
+                break;
+            }
+            if (i == 0){
+                fixGloves(robot);
+                fixGloves(robot);
+            }
+            standUp(i, robot);
+            //吃东西
+            eat(i);
+            breakTime(robot, i);
+            ensureRunning();
+            tabSwitch();
+            safeDelay(500);
+            for (int j = 0; j < restAfterHits && running; j++) {
+                //开始摧毁箱子
+                coffeeCheckDomin rst = desitroy(robot, lastEdge , j);
+                lastEdge = rst.getLastEdge();
+                if (rst.getJ() != 0){
+                    //一次大循环只吃一次
+                    coffeeCheck = false;
+                    j = rst.getJ();
+                }
+            }
+            coffeeCheck = true;
+            if (!running) {
+                break;
+            }
+            //关闭Tab
+            safeDelay(500);
+            ensureRunning();
+            tabSwitch();
+            safeDelay(100);
+            robot.keyPress(KeyEvent.VK_C);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_C);
+            safeDelay(400);
+            if ("趴下".equals(restType)) {
+                lieDownRevocery(robot);
+            } else {
+                recoveryTab(robot);
+            }
+
+        }
+    }
+
+    private void eat(int i) throws InterruptedException {
+        safeDelay(1000);
+        ensureRunning();
+        tabSwitch();
+        safeDelay(500);
+        ensureRunning();
+        robot.keyPress(KeyEvent.VK_4);
+        safeDelay(50);
+        robot.keyRelease(KeyEvent.VK_4);
+        safeDelay(1000);
+        iQDetect();
+
+        ensureRunning();
+        boolean intestine = checkcIntestine();
+        boolean stomach = checkStomach();
+        boolean nengliang = checkNengLiang();
+        boolean danBaizhi = checkDanBaiZhi();
+        boolean water = checkWater();
+
+        safeDelay(500);
+        ensureRunning();
+        tabSwitch();
+        safeDelay(500);
+
+
+        if (enableAutoEat && stomach) {
+            if ((intestine && (nengliang || danBaizhi))) {
+                //吃一口面粉
+                ensureRunning();
+                robot.keyPress(KeyEvent.VK_0);
+                safeDelay(50);
+                robot.keyRelease(KeyEvent.VK_0);
+                safeDelay(7 * 1000);
+                //防止卡背包，切换一下
+                ensureRunning();
+                robot.keyPress(KeyEvent.VK_3);
+                safeDelay(100);
+                robot.keyRelease(KeyEvent.VK_3);
+                safeDelay(2 * 1000);
+                ensureRunning();
+                robot.keyPress(KeyEvent.VK_3);
+                safeDelay(100);
+                robot.keyRelease(KeyEvent.VK_3);
+                safeDelay(2 * 1000);
+            }
+            if (nengliang || danBaizhi){
+                System.out.println(LocalDateTime.now() + "能量+蛋白质其中之一不满足。需要吃" + nengliang + danBaizhi);
+            }else {
+                System.out.println(LocalDateTime.now() + "能量+蛋白质充足不2需要吃" + nengliang + danBaizhi);
+            }
+        }
+        safeDelay(1000);
+
+        //喝水
+        if (!(water && stomach)) {
+            return;
+        }
+
+        //按一下5喝水
+        ensureRunning();
+        robot.keyPress(KeyEvent.VK_5);
+        safeDelay(300);
+        robot.keyRelease(KeyEvent.VK_5);
+        safeDelay(4000);
+        ensureRunning();
+        robot.keyPress(KeyEvent.VK_5);
+        safeDelay(300);
+        robot.keyRelease(KeyEvent.VK_5);
+        safeDelay(4000);
+        ensureRunning();
+        robot.keyPress(KeyEvent.VK_5);
+        safeDelay(300);
+        robot.keyRelease(KeyEvent.VK_5);
+        safeDelay(4000);
+        //防止卡背包，切换一下
+        ensureRunning();
+        robot.keyPress(KeyEvent.VK_3);
+        safeDelay(100);
+        robot.keyRelease(KeyEvent.VK_3);
+        safeDelay(2 * 1000);
+        ensureRunning();
+        robot.keyPress(KeyEvent.VK_3);
+        safeDelay(100);
+        robot.keyRelease(KeyEvent.VK_3);
+        safeDelay(2 * 1000);
+
+    }
+
+    private void iQDetect() throws InterruptedException {
+        //这里顺带着检查一下智力面板是不是开启了
+        Color iQPadel = getPixelColor(298, 117);
+        if (iQPadel.getRed() > 200 && iQPadel.getBlue() > 200 && iQPadel.getGreen() > 200){
+            //打开了智力面板
+            robot.mouseMove(47 , 118);
+            safeDelay(50);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            safeDelay(50);
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            safeDelay(100);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            safeDelay(50);
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+        }
+    }
+
+
+    public void setRunning() {
+        this.running = false;
+        interrupt();
+    }
+
+
+    private void eatCoffeeV2(Robot robot) throws InterruptedException {
+//        在校验一次是不是需要吃咖啡
+        if (!checkCoffeeSecend()) {
+            System.out.println(LocalDateTime.now() + "出现咖啡含量误判，二次校验不通过");
+            //误判 退出
+            return;
+        }
+        if (enableAutoCaffeine) {
+            System.out.println(LocalDateTime.now() + "二次校验通过");
+            safeDelay(1000);
+            ensureRunning();
+            robot.keyPress(KeyEvent.VK_8);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_8);
+            safeDelay(5000);
+            ensureRunning();
+            robot.keyPress(KeyEvent.VK_8);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_8);
+            safeDelay(5000);
+            ensureRunning();
+            robot.keyPress(KeyEvent.VK_8);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_8);
+            safeDelay(5 * 1000);
+        }
+    }
+
+    private void breakTime(Robot robot, int j) throws InterruptedException {
+        for (int i = 0; i < 2; i++) {
+            if ((j % repairGlovesAfter) == 0 && j != 0) {
+                fixGloves(robot);
+            }
+        }
+    }
+
+    private void fixGloves(Robot robot) throws InterruptedException {
+        //修手套
+        ensureRunning();
+        tabSwitch();
+        safeDelay(300);
+        ensureRunning();
+        robot.keyPress(KeyEvent.VK_1);
+        safeDelay(50);
+        robot.keyRelease(KeyEvent.VK_1);
+        safeDelay(300);
+        robot.mouseMove(715, 724);
+
+        safeDelay(500);
+        ensureRunning();
+        robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+        safeDelay(300);
+        robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+
+        safeDelay(500);
+        robot.mouseMove(730, 721);
+        safeDelay(500);
+        ensureRunning();
+        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        safeDelay(50);
+        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+        safeDelay(6 * 1000);
+
+        ensureRunning();
+        tabSwitch();
+    }
+
+    private coffeeCheckDomin desitroy(Robot robot , int lastEdge , int j) throws ExecutionException, InterruptedException {
+        coffeeCheckDomin coffeeCheckDomin = new coffeeCheckDomin();
+        coffeeCheckDomin.setJ(0);
+        ensureRunning();
+        robot.keyPress(KeyEvent.VK_1);
+        safeDelay(50);
+        robot.keyRelease(KeyEvent.VK_1);
+
+        safeDelay(500);
+        robot.mouseMove(380, 100);
+        safeDelay(500);
+        ensureRunning();
+        robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+        safeDelay(50);
+        robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+        safeDelay(500);
+        if (dropInsteadDestroy) {
+            robot.mouseMove(390, 190);
+        } else {
+            robot.mouseMove(390, 195);
+        }
+        safeDelay(500);
+        ensureRunning();
+        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        safeDelay(50);
+        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+        safeDelay(500);
+
+        ensureRunning();
+        robot.keyPress(KeyEvent.VK_4);
+        safeDelay(50);
+        robot.keyRelease(KeyEvent.VK_4);
+
+        Future<Integer> coffeeEdge = checkCoffeeV2();//开启检测咖啡含量线程
+        Future<Boolean> coffeeContains = coffeeStatus();
+        safeDelay((int) (timePerHit * 1000) - 1000);
+
+        safeDelay(2000);
+        robot.mouseMove(1024 / 2 , 768 / 2);
+        safeDelay(1000);
+        ensureRunning();
+        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        safeDelay(50);
+        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+        safeDelay(300);
+        ensureRunning();
+
+        //这个时候线程肯定执行完了,取刚开始检测的值,x的值跟上一次比较不应该差5个像素
+        Integer x = coffeeEdge.get();
+        for (int i = 0; i < 2; i++) {
+            if (lastEdge != 0){
+                int abs = Math.abs(x - lastEdge);
+                if (abs > 5){
+                    System.out.println("错误，两次咖啡因差值检测超出5个像素");
+                    //再次检测
+                    Future<Integer> coffeeEdge2 = checkCoffeeV2();//开启检测咖啡含量线程
+                    x = coffeeEdge2.get();
+                }else {
+                    break;
+                }
+            }
+        }
+
+        robot.keyPress(KeyEvent.VK_1);
+        safeDelay(50);
+        robot.keyRelease(KeyEvent.VK_1);
+        safeDelay(500);
+        coffeeCheckDomin.setLastEdge(x); // 哪个大取哪个
+        boolean eatCoffee = false;//是否需要吃咖啡粉
+        if ((lastEdge!=0 && x < lastEdge) || !coffeeContains.get()){
+            eatCoffee = true;
+            if(!coffeeContains.get()){
+                //少运行一次敲箱子
+                coffeeCheckDomin.setJ(++j);
+            }
+        }
+        if (eatCoffee && coffeeCheck){
+            //  本次大循环已经吃过一次了
+            coffeeCheck = false;
+            coffeeCheckDomin.setLastEdge(x);
+            //关闭TAB
+            ensureRunning();
+            tabSwitch();
+
+            safeDelay(500);
+
+            robot.keyPress(KeyEvent.VK_C);
+            safeDelay(300);
+            robot.keyRelease(KeyEvent.VK_C);
+            eatCoffeeV2(robot);
+            //打开TAB
+            ensureRunning();
+            tabSwitch();
+        }
+        return coffeeCheckDomin;
+    }
+
+    private void tabSwitch() throws InterruptedException {
+        robot.keyPress(KeyEvent.VK_TAB);
+        safeDelay(50);
+        robot.keyRelease(KeyEvent.VK_TAB);
+        //在开关tab的时候，做一个掉线检测
+    }
+
+    private Future<Boolean> coffeeStatus() {
+        Future<Boolean> future = executor.submit(() -> {
+            //如果是白色,说明体内已经没有咖啡粉了
+            Color color = getPixelColor(183, 468);
+            if (color.getGreen() > 180 && color.getRed() > 180 && color.getBlue() > 180){
+                System.out.println("检测到咖啡粉已耗尽" + LocalDateTime.now());
+                return false;//无
+            }
+            return true;//有
+        });
+        return future;
+    }
+
+    private void standUp(int i, Robot robot) throws InterruptedException {
+        if ("趴下".equals(restType)) {
+            if (i != 0) {
+                ensureRunning();
+                robot.keyPress(KeyEvent.VK_X);
+                safeDelay(50);
+                robot.keyRelease(KeyEvent.VK_X);
+                safeDelay(3 * 1000);
+            }
+
+        } else {
+            if (i != 0) {
+                ensureRunning();
+                robot.keyPress(KeyEvent.VK_W);
+                safeDelay(300);
+                robot.keyRelease(KeyEvent.VK_W);
+                safeDelay(4 * 1000);
+                ensureRunning();
+            }
+
+        }
+    }
+
+    private void qieping(Robot robot) throws InterruptedException {
+        //切屏
+        ensureRunning();
+        robot.keyPress(KeyEvent.VK_ALT);
+        safeDelay(100);
+        robot.keyPress(KeyEvent.VK_TAB);
+        safeDelay(100);
+        robot.keyRelease(KeyEvent.VK_TAB);
+        robot.keyRelease(KeyEvent.VK_ALT);
+        safeDelay(3 * 1000);
+    }
+
+    private void lieDownRevocery(Robot robot) throws InterruptedException {
+        safeDelay(1000);
+        ensureRunning();
+        robot.keyPress(KeyEvent.VK_X);
+        safeDelay(50);
+        robot.keyRelease(KeyEvent.VK_X);
+        safeDelay((long) (recoveryTime * 1000));
+    }
+
+    private void recoveryTab(Robot robot) throws InterruptedException {
+        safeDelay(1000);
+        ensureRunning();
+        robot.keyPress(KeyEvent.VK_TAB);//按下tab
+        safeDelay(900);
+        robot.mouseMove(460, 430);
+        safeDelay(900);
+        ensureRunning();
+        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+        safeDelay(900);
+        robot.mouseMove(592, 488);
+        safeDelay(900);
+        ensureRunning();
+        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+        safeDelay(900);
+        robot.keyRelease(KeyEvent.VK_TAB);//松开tab
+        safeDelay((long) (recoveryTime * 1000));
+    }
+}
