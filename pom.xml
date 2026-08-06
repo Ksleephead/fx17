@@ -37,6 +37,8 @@
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
             <version>17.0.8</version>
+            <!-- JavaFX已经由jlink运行时提供，避免再次打进Spring Boot胖JAR。 -->
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -70,6 +72,21 @@
                 <version>2.7.15</version>
                 <configuration>
                     <outputDirectory>${project.build.directory}/dist</outputDirectory>
+                    <!-- JavaFX模块已由jlink放入运行时，禁止Spring Boot胖JAR重复携带。 -->
+                    <excludes>
+                        <exclude>
+                            <groupId>org.openjfx</groupId>
+                            <artifactId>javafx-base</artifactId>
+                        </exclude>
+                        <exclude>
+                            <groupId>org.openjfx</groupId>
+                            <artifactId>javafx-graphics</artifactId>
+                        </exclude>
+                        <exclude>
+                            <groupId>org.openjfx</groupId>
+                            <artifactId>javafx-controls</artifactId>
+                        </exclude>
+                    </excludes>
                 </configuration>
                 <executions>
                     <execution>

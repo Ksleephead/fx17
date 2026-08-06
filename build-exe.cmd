@@ -48,7 +48,11 @@ rmdir /s /q "target\%APP_NAME%" 2>nul
 echo === jlink ===
 "%JDKHOME%\bin\jlink" ^
   --module-path "%JDKHOME%\jmods;%JAVAFX_HOME%" ^
-  --add-modules java.base,java.desktop,java.logging,javafx.controls,javafx.fxml ^
+  --add-modules java.base,java.desktop,java.logging,javafx.controls ^
+  --strip-debug ^
+  --compress=2 ^
+  --no-header-files ^
+  --no-man-pages ^
   --output "%RUNTIME_DIR%"
 
 if not exist "%RUNTIME_DIR%" (
@@ -73,6 +77,14 @@ echo === jpackage ===
   --runtime-image "%RUNTIME_DIR%" ^
   --type app-image ^
   --dest target
+
+if errorlevel 1 (
+  echo [ERROR] jpackage failed
+  exit /b 1
+)
+
+echo === clean temporary runtime ===
+rmdir /s /q "%RUNTIME_DIR%" 2>nul
 
 popd
 endlocal
