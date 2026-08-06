@@ -650,7 +650,7 @@ public class xiangzi extends Thread {
 
         Future<Integer> coffeeEdge = checkCoffeeV2();//开启检测咖啡含量线程
         Future<Boolean> coffeeContains = coffeeStatus();
-        safeDelay((int) (timePerHit * 1000) - 1000);
+        safeDelay((int) (timePerHit * 1000) - 3000);
 
         safeDelay(2000);
         robot.mouseMove(1024 / 2 , 768 / 2);
