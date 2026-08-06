@@ -83,6 +83,14 @@ if errorlevel 1 (
   exit /b 1
 )
 
+echo === copy configuration ===
+if exist "fitness_config.properties" (
+  copy /y "fitness_config.properties" "target\%APP_NAME%\fitness_config.properties"
+) else (
+  echo [ERROR] fitness_config.properties not found
+  exit /b 1
+)
+
 echo === clean temporary runtime ===
 rmdir /s /q "%RUNTIME_DIR%" 2>nul
 
