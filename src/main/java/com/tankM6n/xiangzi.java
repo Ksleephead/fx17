@@ -152,7 +152,7 @@ public class xiangzi extends Thread {
         boolean rst = false;
         moveMouseForInfoWithRetry(0);
         safeDelay(500);
-        //判断力右边的竖线像素点是不是绿色的
+        //判断[力]右边的竖线像素点是不是绿色的
         Color coffeeColor = getPixelColor(155, 431);
         int green = coffeeColor.getGreen();
 
@@ -550,13 +550,13 @@ public class xiangzi extends Thread {
 
     private void eatCoffeeV2(Robot robot) throws InterruptedException {
 //        在校验一次是不是需要吃咖啡
-        if (!checkCoffeeSecend()) {
-            System.out.println(LocalDateTime.now() + "出现咖啡含量误判，二次校验不通过");
-            //误判 退出
-            return;
-        }
+//        if (!checkCoffeeSecend()) {
+//            System.out.println(LocalDateTime.now() + "出现咖啡含量误判，二次校验不通过");
+//            //误判 退出
+//            return;
+//        }
         if (enableAutoCaffeine) {
-            System.out.println(LocalDateTime.now() + "二次校验通过");
+            System.out.println(LocalDateTime.now() + "吃一次咖啡");
             safeDelay(1000);
             ensureRunning();
             robot.keyPress(KeyEvent.VK_8);
