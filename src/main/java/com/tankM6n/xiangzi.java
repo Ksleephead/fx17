@@ -667,7 +667,7 @@ public class xiangzi extends Thread {
         for (int i = 0; i < 2; i++) {
             if (lastEdge != 0){
                 int abs = Math.abs(x - lastEdge);
-                if (abs > 5){
+                if (abs > 8){
                     System.out.println("错误，两次咖啡因差值检测超出5个像素");
                     //再次检测
                     Future<Integer> coffeeEdge2 = checkCoffeeV2();//开启检测咖啡含量线程
@@ -686,10 +686,8 @@ public class xiangzi extends Thread {
         boolean eatCoffee = false;//是否需要吃咖啡粉
         if ((lastEdge!=0 && x < lastEdge) || !coffeeContains.get()){
             eatCoffee = true;
-            if(!coffeeContains.get()){
-                //少运行一次敲箱子
-                coffeeCheckDomin.setJ(++j);
-            }
+            //少运行一次敲箱子
+            coffeeCheckDomin.setJ(++j);
         }
         if (eatCoffee && coffeeCheck){
             //  本次大循环已经吃过一次了
