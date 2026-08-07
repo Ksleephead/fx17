@@ -7,6 +7,8 @@ import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.NativeHookException;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -22,6 +24,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import javafx.util.Duration;
 
 import java.awt.*;
 import java.awt.event.InputEvent;
@@ -86,7 +89,13 @@ public class Main extends Application {
     private Button editSaveButton;
 
     // 训练线程
-    private xiangzi trainingThread;
+    private volatile xiangzi trainingThread;
+
+    // 累计炼体时长。运行期间使用单调时钟，避免系统时间调整影响计时。
+    private long accumulatedTrainingMillis;
+    private volatile long trainingStartedAtNanos = -1L;
+    private TextField trainingDurationField;
+    private Timeline trainingDurationTimeline;
 
     private ExecutorService service;
 
@@ -275,11 +284,27 @@ public class Main extends Application {
         stopButton.setPrefWidth(150);
         stopButton.setOnAction(event -> stopTraining());
 
-        root.getChildren().addAll(restTypeLabel, restTypeComboBox, dropCheckBox,
+        Label trainingDurationLabel = new Label("已炼体时长：");
+        trainingDurationLabel.setLayoutX(20);
+        trainingDurationLabel.setLayoutY(330);
+//        trainingDurationLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
+
+        trainingDurationField = new TextField();
+        trainingDurationField.setLayoutX(105);
+        trainingDurationField.setLayoutY(330);
+        trainingDurationField.setPrefWidth(225);
+        trainingDurationField.setEditable(false);
+        trainingDurationField.setFocusTraversable(false);
+        trainingDurationField.setStyle("-fx-font-weight: bold; -fx-alignment: center;");
+        updateTrainingDurationDisplay();
+
+        root.getChildren().addAll(restTypeLabel, restTypeComboBox,
+//                dropCheckBox,
                 caffeineCheckBox, autoEatCheckBox,
                 serverRestartLabel, serverRestartComboBox,
                 serverRestartIntervalLabel, serverRestartIntervalComboBox,
-                editSaveButton, startButton, stopButton);
+                editSaveButton, startButton, stopButton,
+                trainingDurationLabel, trainingDurationField);
 
         // 设置场景和舞台
         Scene scene = new Scene(root, 500, 520); // 增加高度以适应新控件
@@ -288,6 +313,7 @@ public class Main extends Application {
 
         // 加载保存的配置
         loadConfig();
+        startTrainingDurationDisplayTimer();
 
         // 初始状态：禁用所有输入组件
         setInputFieldsEditable(false);
@@ -403,8 +429,10 @@ public class Main extends Application {
         serverRestartTime = config.getServerRestartTime();
         // Codex生成：加载已保存的服务器重启间隔。
         serverRestartInterval = config.getServerRestartInterval();
+        accumulatedTrainingMillis = config.getAccumulatedTrainingMillis();
 
         updateUIFromConfig();
+        updateTrainingDurationDisplay();
     }
 
     /**
@@ -425,6 +453,7 @@ public class Main extends Application {
         config.setServerRestartTime(serverRestartTime);
         // Codex生成：把服务器重启间隔写入配置对象。
         config.setServerRestartInterval(serverRestartInterval);
+        config.setAccumulatedTrainingMillis(getCurrentTrainingDurationMillis());
 
         configService.save(config);
     }
@@ -539,6 +568,7 @@ public class Main extends Application {
 
             // 启动线程
             trainingThread.start();
+            beginTrainingDuration();
 
             scheduleRestartTask();
         } catch (NumberFormatException e) {
@@ -551,6 +581,7 @@ public class Main extends Application {
      * 停止训练线程
      */
     private synchronized void stopTraining() {
+        boolean wasTiming = trainingStartedAtNanos >= 0L;
         if (trainingThread != null) {
             trainingThread.setRunning();
             trainingThread.interrupt();
@@ -562,6 +593,64 @@ public class Main extends Application {
             service.shutdownNow();
             service = null;
         }
+
+        if (wasTiming) {
+            finishTrainingDuration();
+            saveConfig();
+        }
+    }
+
+    private synchronized void beginTrainingDuration() {
+        if (trainingStartedAtNanos < 0L) {
+            trainingStartedAtNanos = System.nanoTime();
+        }
+        updateTrainingDurationDisplay();
+    }
+
+    private synchronized void finishTrainingDuration() {
+        if (trainingStartedAtNanos >= 0L) {
+            accumulatedTrainingMillis += TimeUnit.NANOSECONDS.toMillis(
+                    System.nanoTime() - trainingStartedAtNanos);
+            trainingStartedAtNanos = -1L;
+        }
+        updateTrainingDurationDisplay();
+    }
+
+    private synchronized long getCurrentTrainingDurationMillis() {
+        if (trainingStartedAtNanos < 0L) {
+            return accumulatedTrainingMillis;
+        }
+        return accumulatedTrainingMillis + TimeUnit.NANOSECONDS.toMillis(
+                System.nanoTime() - trainingStartedAtNanos);
+    }
+
+    private void startTrainingDurationDisplayTimer() {
+        trainingDurationTimeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
+            xiangzi currentThread = trainingThread;
+            if (trainingStartedAtNanos >= 0L && (currentThread == null || !currentThread.isAlive())) {
+                stopTraining();
+            } else {
+                updateTrainingDurationDisplay();
+            }
+        }));
+        trainingDurationTimeline.setCycleCount(Timeline.INDEFINITE);
+        trainingDurationTimeline.play();
+    }
+
+    private void updateTrainingDurationDisplay() {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(this::updateTrainingDurationDisplay);
+            return;
+        }
+        if (trainingDurationField == null) {
+            return;
+        }
+
+        long totalSeconds = getCurrentTrainingDurationMillis() / 1000L;
+        long hours = totalSeconds / 3600L;
+        long minutes = (totalSeconds % 3600L) / 60L;
+        long seconds = totalSeconds % 60L;
+        trainingDurationField.setText(String.format("%d小时%02d分钟%02d秒", hours, minutes, seconds));
     }
 
     private void unregisterNativeHook() {

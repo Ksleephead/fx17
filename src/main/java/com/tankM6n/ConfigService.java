@@ -32,6 +32,8 @@ public class ConfigService {
         config.setEnableAutoCaffeine(Boolean.parseBoolean(prop.getProperty("enableAutoCaffeine", "false")));
         config.setEnableAutoEat(Boolean.parseBoolean(prop.getProperty("enableAutoEat", "false")));
         config.setServerRestartTime(prop.getProperty("serverRestartTime", "12"));
+        config.setAccumulatedTrainingMillis(parseNonNegativeLong(
+                prop.getProperty("accumulatedTrainingMillis", "0")));
         // Codex生成：读取重启间隔；兼容没有该字段的旧配置。
         config.setServerRestartInterval(prop.getProperty("serverRestartInterval", "6"));
 
@@ -52,6 +54,8 @@ public class ConfigService {
         prop.setProperty("caffeineMg", valueOrEmpty(config.getCaffeineMg()));
         prop.setProperty("enableAutoCaffeine", Boolean.toString(config.isEnableAutoCaffeine()));
         prop.setProperty("serverRestartTime", valueOrDefault(config.getServerRestartTime(), "12"));
+        prop.setProperty("accumulatedTrainingMillis",
+                Long.toString(config.getAccumulatedTrainingMillis()));
         // Codex生成：保存服务器重启间隔，供下次启动程序时继续使用。
         prop.setProperty("serverRestartInterval", valueOrDefault(config.getServerRestartInterval(), "0"));
 
@@ -69,5 +73,13 @@ public class ConfigService {
 
     private String valueOrDefault(String value, String defaultValue) {
         return value != null ? value : defaultValue;
+    }
+
+    private long parseNonNegativeLong(String value) {
+        try {
+            return Math.max(0L, Long.parseLong(value));
+        } catch (NumberFormatException ex) {
+            return 0L;
+        }
     }
 }

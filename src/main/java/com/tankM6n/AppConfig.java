@@ -15,6 +15,7 @@ public class AppConfig {
     private boolean enableAutoCaffeine;
     private boolean enableAutoEat;
     private String serverRestartTime = "12";
+    private long accumulatedTrainingMillis;
     // Codex生成：服务器每次重启完成后，用该间隔计算下一次重启时间。
     private String serverRestartInterval = "0";
 
@@ -112,5 +113,13 @@ public class AppConfig {
 
     public void setServerRestartInterval(String serverRestartInterval) {
         this.serverRestartInterval = serverRestartInterval;
+    }
+
+    public long getAccumulatedTrainingMillis() {
+        return accumulatedTrainingMillis;
+    }
+
+    public void setAccumulatedTrainingMillis(long accumulatedTrainingMillis) {
+        this.accumulatedTrainingMillis = Math.max(0L, accumulatedTrainingMillis);
     }
 }
