@@ -391,9 +391,8 @@ public class xiangzi extends Thread {
             }
             //开局修手套
             if (i == 0){
-                //TODO
-//                fixGloves(robot);
-//                fixGloves(robot);
+                fixGloves(robot);
+                fixGloves(robot);
             }
             standUp(i, robot);
             //吃东西
