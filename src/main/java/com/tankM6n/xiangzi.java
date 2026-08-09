@@ -370,13 +370,9 @@ public class xiangzi extends Thread {
             safeDelay(10);
             robot.mouseMove(32,356);
             safeDelay(300);
-            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            safeDelay(100);
-            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            mousePress(InputEvent.BUTTON1_DOWN_MASK);
             safeDelay(300);
-            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            safeDelay(100);
-            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            mousePress(InputEvent.BUTTON1_DOWN_MASK);
             safeDelay(1000);
             robot.mouseMove(1024/2,768/2);
             safeDelay(1000);
@@ -393,9 +389,11 @@ public class xiangzi extends Thread {
             if (!running) {
                 break;
             }
+            //开局修手套
             if (i == 0){
-                fixGloves(robot);
-                fixGloves(robot);
+                //TODO
+//                fixGloves(robot);
+//                fixGloves(robot);
             }
             standUp(i, robot);
             //吃东西
@@ -404,6 +402,8 @@ public class xiangzi extends Thread {
             ensureRunning();
             tabSwitch();
             safeDelay(500);
+            //修鞋子
+            repairShoes(i);
             for (int j = 0; j < restAfterHits && running; j++) {
                 //开始摧毁箱子
                 coffeeCheckDomin rst = desitroy(robot, lastEdge , j);
@@ -434,6 +434,36 @@ public class xiangzi extends Thread {
             }
 
         }
+    }
+
+    private void repairShoes(int i) throws InterruptedException {
+        //每五次大循环check一次
+        if (i % 5 == 0) {
+            System.out.println("修鞋子" + LocalDateTime.now());
+            robot.keyPress(KeyEvent.VK_1);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_1);
+            safeDelay(500);
+            Color shoes = getPixelColor(1017, 671);
+            if (shoes.getRed() > 200) {
+                robot.mouseMove(981 ,634);
+                safeDelay(300);
+                mousePress(InputEvent.BUTTON3_DOWN_MASK);
+                safeDelay(300);
+                robot.mouseMove(942 , 715);
+                safeDelay(300);
+                mousePress(InputEvent.BUTTON1_DOWN_MASK);
+                safeDelay(6 * 1000);
+            }else{
+                System.out.println("鞋子状态良好，不用修" + LocalDateTime.now());
+            }
+        }
+    }
+
+    private void mousePress(int button3DownMask) throws InterruptedException {
+        robot.mousePress(button3DownMask);
+        safeDelay(50);
+        robot.mouseRelease(button3DownMask);
     }
 
     private void eat(int i) throws InterruptedException {
@@ -531,13 +561,9 @@ public class xiangzi extends Thread {
             //打开了智力面板
             robot.mouseMove(47 , 118);
             safeDelay(50);
-            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            safeDelay(50);
-            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            mousePress(InputEvent.BUTTON1_DOWN_MASK);
             safeDelay(100);
-            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            safeDelay(50);
-            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            mousePress(InputEvent.BUTTON1_DOWN_MASK);
         }
     }
 
@@ -598,17 +624,13 @@ public class xiangzi extends Thread {
 
         safeDelay(500);
         ensureRunning();
-        robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
-        safeDelay(300);
-        robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+        mousePress(InputEvent.BUTTON3_DOWN_MASK);
 
         safeDelay(500);
         robot.mouseMove(730, 721);
         safeDelay(500);
         ensureRunning();
-        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-        safeDelay(50);
-        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+        mousePress(InputEvent.BUTTON1_DOWN_MASK);
         safeDelay(6 * 1000);
 
         ensureRunning();
@@ -627,9 +649,7 @@ public class xiangzi extends Thread {
         robot.mouseMove(380, 100);
         safeDelay(500);
         ensureRunning();
-        robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
-        safeDelay(50);
-        robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+        mousePress(InputEvent.BUTTON3_DOWN_MASK);
         safeDelay(500);
         if (dropInsteadDestroy) {
             robot.mouseMove(390, 190);
@@ -638,9 +658,7 @@ public class xiangzi extends Thread {
         }
         safeDelay(500);
         ensureRunning();
-        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-        safeDelay(50);
-        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+        mousePress(InputEvent.BUTTON1_DOWN_MASK);
         safeDelay(500);
 
         ensureRunning();
@@ -656,9 +674,7 @@ public class xiangzi extends Thread {
         robot.mouseMove(1024 / 2 , 768 / 2);
         safeDelay(1000);
         ensureRunning();
-        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-        safeDelay(50);
-        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+        mousePress(InputEvent.BUTTON1_DOWN_MASK);
         safeDelay(300);
         ensureRunning();
 

@@ -108,7 +108,7 @@ public class Main extends Application {
         root.setPadding(new Insets(20));
 
         // 添加顶部提示信息
-        Label tip1 = new Label("1、手套放在7号位置");
+        Label tip1 = new Label("1、建筑手套放在7号位置");
         tip1.setLayoutX(20);
         tip1.setLayoutY(10);
         tip1.setFont(Font.font("System", FontWeight.BOLD, 14));
@@ -152,27 +152,32 @@ public class Main extends Application {
         tip7.setFont(Font.font("System", FontWeight.BOLD, 14));
         tip7.setStyle("-fx-text-fill: red;");
 
+        Label tip8 = new Label("8、鞋放在6号快捷键");
+        tip8.setLayoutX(20);
+        tip8.setLayoutY(110);
+        tip8.setFont(Font.font("System", FontWeight.BOLD, 14));
+        tip8.setStyle("-fx-text-fill: red;");
 
-        root.getChildren().addAll(tip1, tip2 , tip3 , tip4 , tip5 , tip6 , tip7);
+        root.getChildren().addAll(tip1, tip2 , tip3 , tip4 , tip5 , tip6 , tip7, tip8);
 
         // 创建5个输入框组
-        createInputGroup(root, "砸箱子多少下后休息：", "", 20, 120, "restAfterHits");
-        createInputGroup(root, "体力耗尽后多少下后修手套：", "", 20, 170, "repairGlovesAfter");
+        createInputGroup(root, "砸箱子多少下后休息：", "", 20, 145, "restAfterHits");
+        createInputGroup(root, "体力耗尽后多少下后修手套：", "", 20, 195, "repairGlovesAfter");
 //        createInputGroup(root, "体力耗尽后多少下后喝水：", "", 20, 170, "drinkWaterAfter");
-        createInputGroup(root, "砸一次箱子时间（单位：秒）：", "", 20, 220, "timePerHit");
-        createInputGroup(root, "体力恢复时间（单位：秒）：", "", 20, 270, "recoveryTime");
+        createInputGroup(root, "砸一次箱子时间（单位：秒）：", "", 20, 245, "timePerHit");
+        createInputGroup(root, "体力恢复时间（单位：秒）：", "", 20, 295, "recoveryTime");
 
         // 添加休息类型下拉框
         Label restTypeLabel = new Label("休息类型：");
         restTypeLabel.setLayoutX(20);
-        restTypeLabel.setLayoutY(300);
+        restTypeLabel.setLayoutY(325);
 
         // 创建下拉框并添加选项
         restTypeComboBox = new ComboBox<>();
         ObservableList<String> restOptions = FXCollections.observableArrayList("坐下", "趴下");
         restTypeComboBox.setItems(restOptions);
         restTypeComboBox.setLayoutX(120);
-        restTypeComboBox.setLayoutY(300);
+        restTypeComboBox.setLayoutY(325);
         restTypeComboBox.setPrefWidth(120);
         restTypeComboBox.setValue("趴下"); // 设置默认值
 
@@ -184,7 +189,7 @@ public class Main extends Application {
         // 添加复选框（如果点击的是丢下而不是摧毁，把这个勾打上）
         dropCheckBox = new CheckBox("如果点击的是丢下而不是摧毁，把这个勾打上【失效】");
         dropCheckBox.setLayoutX(20);
-        dropCheckBox.setLayoutY(330);
+        dropCheckBox.setLayoutY(355);
         dropCheckBox.setSelected(dropInsteadDestroy);
         dropCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
             dropInsteadDestroy = newValue;
@@ -193,7 +198,7 @@ public class Main extends Application {
         // 添加咖啡因复选框
         caffeineCheckBox = new CheckBox("是否启用自动吃咖啡粉");
         caffeineCheckBox.setLayoutX(20);
-        caffeineCheckBox.setLayoutY(360);
+        caffeineCheckBox.setLayoutY(385);
         caffeineCheckBox.setSelected(enableAutoCaffeine);
         caffeineCheckBox.setDisable(true); // 初始状态下禁用
         caffeineCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
@@ -222,7 +227,7 @@ public class Main extends Application {
         // 添加自动吃饭复选框 - 在咖啡因控件后添加
         autoEatCheckBox = new CheckBox("是否启用自动吃饭");
         autoEatCheckBox.setLayoutX(220);
-        autoEatCheckBox.setLayoutY(360);  // 紧接在咖啡因控件下方
+        autoEatCheckBox.setLayoutY(385);  // 紧接在咖啡因控件下方
         autoEatCheckBox.setSelected(enableAutoEat);
         autoEatCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
             enableAutoEat = newValue;
@@ -231,7 +236,7 @@ public class Main extends Application {
         // ===================== 服务器重启时间 =====================
         Label serverRestartLabel = new Label("下一次服务器重启时间【24小时制】：");
         serverRestartLabel.setLayoutX(20);
-        serverRestartLabel.setLayoutY(390);
+        serverRestartLabel.setLayoutY(415);
 
         serverRestartComboBox = new ComboBox<>();
         ObservableList<String> hours = FXCollections.observableArrayList();
@@ -241,14 +246,14 @@ public class Main extends Application {
         }
         serverRestartComboBox.setItems(hours);
         serverRestartComboBox.setLayoutX(220);
-        serverRestartComboBox.setLayoutY(390);
+        serverRestartComboBox.setLayoutY(415);
         serverRestartComboBox.setPrefWidth(120);
         serverRestartComboBox.setValue(serverRestartTime);
         serverRestartComboBox.valueProperty().addListener((obs, o, n) -> serverRestartTime = n);
 
         Label serverRestartIntervalLabel = new Label("服务器重启间隔【小时】：");
         serverRestartIntervalLabel.setLayoutX(20);
-        serverRestartIntervalLabel.setLayoutY(420);
+        serverRestartIntervalLabel.setLayoutY(445);
 
         serverRestartIntervalComboBox = new ComboBox<>();
         ObservableList<String> intervals = FXCollections.observableArrayList();
@@ -258,7 +263,7 @@ public class Main extends Application {
         }
         serverRestartIntervalComboBox.setItems(intervals);
         serverRestartIntervalComboBox.setLayoutX(220);
-        serverRestartIntervalComboBox.setLayoutY(420);
+        serverRestartIntervalComboBox.setLayoutY(445);
         serverRestartIntervalComboBox.setPrefWidth(120);
         serverRestartIntervalComboBox.setValue(serverRestartInterval);
         serverRestartIntervalComboBox.valueProperty().addListener((obs, o, n) -> serverRestartInterval = n);
@@ -266,32 +271,32 @@ public class Main extends Application {
         // 添加编辑/保存按钮
         editSaveButton = new Button("编辑");
         editSaveButton.setLayoutX(20);
-        editSaveButton.setLayoutY(450);
+        editSaveButton.setLayoutY(475);
         editSaveButton.setPrefWidth(150);
         editSaveButton.setOnAction(event -> toggleEditMode());
 
         // 添加开始训练按钮
         Button startButton = new Button("开始训练");
         startButton.setLayoutX(180);
-        startButton.setLayoutY(450);
+        startButton.setLayoutY(475);
         startButton.setPrefWidth(150);
         startButton.setOnAction(event -> startTraining("default"));
 
         // 添加停止训练按钮
         Button stopButton = new Button("停止训练");
         stopButton.setLayoutX(340);
-        stopButton.setLayoutY(450);
+        stopButton.setLayoutY(475);
         stopButton.setPrefWidth(150);
         stopButton.setOnAction(event -> stopTraining());
 
         Label trainingDurationLabel = new Label("已炼体时长：");
         trainingDurationLabel.setLayoutX(20);
-        trainingDurationLabel.setLayoutY(330);
+        trainingDurationLabel.setLayoutY(355);
 //        trainingDurationLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
 
         trainingDurationField = new TextField();
         trainingDurationField.setLayoutX(105);
-        trainingDurationField.setLayoutY(330);
+        trainingDurationField.setLayoutY(355);
         trainingDurationField.setPrefWidth(225);
         trainingDurationField.setEditable(false);
         trainingDurationField.setFocusTraversable(false);
@@ -307,7 +312,7 @@ public class Main extends Application {
                 trainingDurationLabel, trainingDurationField);
 
         // 设置场景和舞台
-        Scene scene = new Scene(root, 500, 520); // 增加高度以适应新控件
+        Scene scene = new Scene(root, 500, 545); // 增加高度以适应新提示
         primaryStage.setTitle("SCUM创可贴免费炼体器(作者：GorphynMars)");
         primaryStage.setScene(scene);
 
