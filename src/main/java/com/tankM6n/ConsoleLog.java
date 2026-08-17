@@ -9,6 +9,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -17,6 +18,9 @@ import java.time.format.DateTimeFormatter;
  * 将标准输出和标准错误同时写入控制台与日志文件。
  */
 public final class ConsoleLog {
+    private static final byte[] UTF_8_BOM = {
+            (byte) 0xEF, (byte) 0xBB, (byte) 0xBF
+    };
     private static final DateTimeFormatter TIME_FORMAT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static boolean initialized;
@@ -34,6 +38,7 @@ public final class ConsoleLog {
 
         try {
             Path logFile = resolveLogFile();
+            ensureUtf8Bom(logFile);
 
             PrintStream fileOutput = new PrintStream(
                     Files.newOutputStream(
@@ -75,6 +80,60 @@ public final class ConsoleLog {
         return Path.of(System.getProperty("user.dir"), "console.log")
                 .toAbsolutePath()
                 .normalize();
+    }
+
+    /**
+     * 为 UTF-8 日志添加 BOM，避免 Windows 记事本按系统默认编码读取中文。
+     * 已存在的日志内容会原样保留。
+     */
+    private static void ensureUtf8Bom(Path logFile) throws IOException {
+        Path parent = logFile.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+
+        if (Files.notExists(logFile) || Files.size(logFile) == 0) {
+            Files.write(
+                    logFile,
+                    UTF_8_BOM,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING
+            );
+            return;
+        }
+
+        byte[] prefix = new byte[UTF_8_BOM.length];
+        try (var input = Files.newInputStream(logFile)) {
+            if (input.read(prefix) == UTF_8_BOM.length
+                    && java.util.Arrays.equals(prefix, UTF_8_BOM)) {
+                return;
+            }
+        }
+
+        Path temporaryLog = Files.createTempFile(parent, "console-", ".log.tmp");
+        try {
+            try (var output = Files.newOutputStream(temporaryLog);
+                 var input = Files.newInputStream(logFile)) {
+                output.write(UTF_8_BOM);
+                input.transferTo(output);
+            }
+            try {
+                Files.move(
+                        temporaryLog,
+                        logFile,
+                        StandardCopyOption.REPLACE_EXISTING,
+                        StandardCopyOption.ATOMIC_MOVE
+                );
+            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                Files.move(
+                        temporaryLog,
+                        logFile,
+                        StandardCopyOption.REPLACE_EXISTING
+                );
+            }
+        } finally {
+            Files.deleteIfExists(temporaryLog);
+        }
     }
 
     private static PrintStream createTeePrintStream(
