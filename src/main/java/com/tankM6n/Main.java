@@ -20,6 +20,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.Pane;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
@@ -28,6 +30,7 @@ import javafx.util.Duration;
 
 import java.awt.*;
 import java.awt.event.InputEvent;
+import java.net.URL;
 import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -96,6 +99,9 @@ public class Main extends Application {
     private volatile long trainingStartedAtNanos = -1L;
     private TextField trainingDurationField;
     private Timeline trainingDurationTimeline;
+
+    // Retain the JavaFX player while a short notification is playing.
+    private MediaPlayer notificationPlayer;
 
     private ExecutorService service;
 
@@ -574,6 +580,7 @@ public class Main extends Application {
             // 启动线程
             trainingThread.start();
             beginTrainingDuration();
+            playNotificationSound("/audio/start.mp3");
 
             scheduleRestartTask();
         } catch (NumberFormatException e) {
@@ -602,6 +609,49 @@ public class Main extends Application {
         if (wasTiming) {
             finishTrainingDuration();
             saveConfig();
+            playNotificationSound("/audio/end.mp3");
+        }
+    }
+
+    /**
+     * Plays a bundled training-state notification on the JavaFX application thread.
+     */
+    private void playNotificationSound(String resourcePath) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> playNotificationSound(resourcePath));
+            return;
+        }
+
+        URL audioUrl = Main.class.getResource(resourcePath);
+        if (audioUrl == null) {
+            System.err.println("Audio resource not found: " + resourcePath);
+            return;
+        }
+
+        try {
+            if (notificationPlayer != null) {
+                notificationPlayer.stop();
+                notificationPlayer.dispose();
+            }
+
+            MediaPlayer player = new MediaPlayer(new Media(audioUrl.toExternalForm()));
+            notificationPlayer = player;
+            player.setOnEndOfMedia(() -> disposeNotificationPlayer(player));
+            player.setOnError(() -> {
+                System.err.println("Unable to play audio " + resourcePath + ": "
+                        + player.getError());
+                disposeNotificationPlayer(player);
+            });
+            player.play();
+        } catch (RuntimeException e) {
+            System.err.println("Unable to load audio " + resourcePath + ": " + e.getMessage());
+        }
+    }
+
+    private void disposeNotificationPlayer(MediaPlayer player) {
+        player.dispose();
+        if (notificationPlayer == player) {
+            notificationPlayer = null;
         }
     }
 
@@ -691,11 +741,11 @@ public class Main extends Application {
                 public void nativeKeyPressed(NativeKeyEvent e) {
                     if (e.getKeyCode() == NativeKeyEvent.VC_DOWN || e.getKeyCode() == NativeKeyEvent.VC_PAGE_DOWN) {
                         System.out.println("停止按钮生效");
-                        stopTraining();
+                        Platform.runLater(Main.this::stopTraining);
                     }
                     if (e.getKeyCode() == NativeKeyEvent.VC_UP || e.getKeyCode() == NativeKeyEvent.VC_PAGE_UP) {
                         System.out.println("pageUp游戏内开始");
-                        startTraining("inGame");
+                        Platform.runLater(() -> startTraining("inGame"));
                     }
                 }
 
