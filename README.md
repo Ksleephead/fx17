@@ -19,7 +19,8 @@ Copyright (C) 2026 Ksleephead
 
 ## 附近物品图像识别（独立入口）
 
-当前支持 `pan.png` 和 `stoneFire.png` 两个 classpath 模板。先校准
+当前支持 `pan.png`、`stoneFire.png`、`rice.png` 和 `water.png`
+四个 classpath 模板。先校准
 `nearby-item-detector.properties`，然后执行：
 
 ```powershell

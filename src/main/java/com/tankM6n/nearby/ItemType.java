@@ -6,7 +6,9 @@ package com.tankM6n.nearby;
 /** 当前支持识别的附近物品类型。 */
 public enum ItemType {
     PAN("pan"),
-    STONE_FIRE("stoneFire");
+    STONE_FIRE("stoneFire"),
+    RICE("rice"),
+    WATER("water");
 
     private final String displayName;
 

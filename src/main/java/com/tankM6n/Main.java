@@ -789,13 +789,13 @@ public class Main extends Application {
                         Path.of("nearby-item-detector.properties"));
                 nearbyItemDetector = new NearbyItemDetector(config);
             }
-            // 详细结果同时包含最终匹配集合和每个槽位的两种模板分数。
+            // 详细结果同时包含最终匹配集合和每个槽位的所有模板分数。
             DetectionResult result =
                     nearbyItemDetector.detectDetailedOnce();
             List<ItemMatch> matches = result.matches();
             EnumSet<ItemType> detectedTypes = EnumSet.noneOf(ItemType.class);
 
-            // 每个槽位只打印一行，分别展示 PAN 和 STONE_FIRE 的相似度。
+            // 每个槽位只打印一行，展示四种已知物品的相似度。
             for (SlotSimilarity slot : result.slotSimilarities()) {
                 if (slot.detectedType() != null) {
                     detectedTypes.add(slot.detectedType());
@@ -803,9 +803,13 @@ public class Main extends Application {
                 System.out.printf(
                         Locale.ROOT,
                         "SLOT -> row=%d col=%d x=%d y=%d "
-                                + "panSimilarity=%.3f stoneFireSimilarity=%.3f detected=%s%n",
+                                + "panSimilarity=%.3f stoneFireSimilarity=%.3f "
+                                + "riceSimilarity=%.3f waterSimilarity=%.3f detected=%s%n",
                         slot.row(), slot.col(), slot.screenX(), slot.screenY(),
-                        slot.panSimilarity(), slot.stoneFireSimilarity(),
+                        slot.similarity(ItemType.PAN),
+                        slot.similarity(ItemType.STONE_FIRE),
+                        slot.similarity(ItemType.RICE),
+                        slot.similarity(ItemType.WATER),
                         slot.detectedType() == null ? "NONE" : slot.detectedType());
             }
 

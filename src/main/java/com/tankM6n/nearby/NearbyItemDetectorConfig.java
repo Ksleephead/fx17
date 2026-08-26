@@ -26,13 +26,19 @@ public record NearbyItemDetectorConfig(
         int panIconOffsetY,
         int stoneFireIconOffsetX,
         int stoneFireIconOffsetY,
+        int riceIconOffsetX,
+        int riceIconOffsetY,
+        int waterIconOffsetX,
+        int waterIconOffsetY,
         int positionSearchRadius,
-        int iconWidth,
-        int iconHeight,
         String panTemplatePath,
         String stoneFireTemplatePath,
+        String riceTemplatePath,
+        String waterTemplatePath,
         double panSimilarityThreshold,
-        double stoneFireSimilarityThreshold) {
+        double stoneFireSimilarityThreshold,
+        double riceSimilarityThreshold,
+        double waterSimilarityThreshold) {
 
     public static NearbyItemDetectorConfig load(Path configPath) throws IOException {
         Path absoluteConfigPath = configPath.toAbsolutePath().normalize();
@@ -56,13 +62,19 @@ public record NearbyItemDetectorConfig(
                 integer(properties, "panIconOffsetY"),
                 integer(properties, "stoneFireIconOffsetX"),
                 integer(properties, "stoneFireIconOffsetY"),
+                integer(properties, "riceIconOffsetX"),
+                integer(properties, "riceIconOffsetY"),
+                integer(properties, "waterIconOffsetX"),
+                integer(properties, "waterIconOffsetY"),
                 integer(properties, "positionSearchRadius"),
-                integer(properties, "iconWidth"),
-                integer(properties, "iconHeight"),
                 resolveTemplateLocation(properties, "panTemplatePath", absoluteConfigPath),
                 resolveTemplateLocation(properties, "stoneFireTemplatePath", absoluteConfigPath),
+                resolveTemplateLocation(properties, "riceTemplatePath", absoluteConfigPath),
+                resolveTemplateLocation(properties, "waterTemplatePath", absoluteConfigPath),
                 decimal(properties, "panSimilarityThreshold"),
-                decimal(properties, "stoneFireSimilarityThreshold"));
+                decimal(properties, "stoneFireSimilarityThreshold"),
+                decimal(properties, "riceSimilarityThreshold"),
+                decimal(properties, "waterSimilarityThreshold"));
         config.validate();
         return config;
     }
@@ -90,13 +102,13 @@ public record NearbyItemDetectorConfig(
         requirePositive("cols", cols);
         requirePositive("slotWidth", slotWidth);
         requirePositive("slotHeight", slotHeight);
-        requirePositive("iconWidth", iconWidth);
-        requirePositive("iconHeight", iconHeight);
         requireNonNegative("slotGapX", slotGapX);
         requireNonNegative("slotGapY", slotGapY);
         requireNonNegative("positionSearchRadius", positionSearchRadius);
         validateIconArea("pan", panIconOffsetX, panIconOffsetY);
         validateIconArea("stoneFire", stoneFireIconOffsetX, stoneFireIconOffsetY);
+        validateIconArea("rice", riceIconOffsetX, riceIconOffsetY);
+        validateIconArea("water", waterIconOffsetX, waterIconOffsetY);
 
         long gridWidth = (long) cols * slotWidth + (long) (cols - 1) * slotGapX;
         long gridHeight = (long) rows * slotHeight + (long) (rows - 1) * slotGapY;
@@ -108,19 +120,19 @@ public record NearbyItemDetectorConfig(
 
         validateThreshold("panSimilarityThreshold", panSimilarityThreshold);
         validateThreshold("stoneFireSimilarityThreshold", stoneFireSimilarityThreshold);
+        validateThreshold("riceSimilarityThreshold", riceSimilarityThreshold);
+        validateThreshold("waterSimilarityThreshold", waterSimilarityThreshold);
     }
 
     /** 不同物品在槽位内的位置不同，因此分别验证各自的裁剪偏移。 */
     private void validateIconArea(String name, int offsetX, int offsetY) {
         requireNonNegative(name + "IconOffsetX", offsetX);
         requireNonNegative(name + "IconOffsetY", offsetY);
-        // 搜索范围内的每一个候选裁剪框都必须完整位于槽位中。
+        // 模板尺寸在图片加载后验证；这里先保证搜索起点不会成为负数。
         if (offsetX - positionSearchRadius < 0
-                || offsetY - positionSearchRadius < 0
-                || (long) offsetX + positionSearchRadius + iconWidth > slotWidth
-                || (long) offsetY + positionSearchRadius + iconHeight > slotHeight) {
+                || offsetY - positionSearchRadius < 0) {
             throw new IllegalArgumentException(
-                    name + " icon 搜索区域必须完全位于单个槽位内");
+                    name + " icon 搜索起点不能超出槽位左上边界");
         }
     }
 
