@@ -3,6 +3,9 @@
 
 package com.tankM6n;
 
+import com.tankM6n.nearby.NearbyItemDetector;
+import com.tankM6n.nearby.NearbyItemDetectorConfig;
+import com.tankM6n.nearby.NearbyItemRobotThread;
 import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.NativeHookException;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
@@ -31,8 +34,12 @@ import javafx.util.Duration;
 import java.awt.*;
 import java.awt.event.InputEvent;
 import java.net.URL;
+import java.nio.file.Path;
 import java.time.LocalTime;
+import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -93,6 +100,12 @@ public class Main extends Application {
 
     // 训练线程
     private volatile xiangzi trainingThread;
+
+    // 附近物品识别器；实例复用，避免重复读取和处理模板。
+    private NearbyItemDetector nearbyItemDetector;
+
+    // 接收检测结果并执行后续 Robot 操作的独立线程。
+    private volatile NearbyItemRobotThread nearbyItemRobotThread;
 
     // 累计炼体时长。运行期间使用单调时钟，避免系统时间调整影响计时。
     private long accumulatedTrainingMillis;
@@ -518,6 +531,7 @@ public class Main extends Application {
      */
     private void handleWindowClose(WindowEvent event) {
         stopTraining(); // 确保线程停止
+        stopNearbyItemRobotThread();
         unregisterNativeHook();
         saveConfig();
         if (restartScheduler != null) {
@@ -741,11 +755,18 @@ public class Main extends Application {
                 public void nativeKeyPressed(NativeKeyEvent e) {
                     if (e.getKeyCode() == NativeKeyEvent.VC_DOWN || e.getKeyCode() == NativeKeyEvent.VC_PAGE_DOWN) {
                         System.out.println("停止按钮生效");
-                        Platform.runLater(Main.this::stopTraining);
+                        Platform.runLater(() -> {
+                            stopTraining();
+                            stopNearbyItemRobotThread();
+                        });
                     }
                     if (e.getKeyCode() == NativeKeyEvent.VC_UP || e.getKeyCode() == NativeKeyEvent.VC_PAGE_UP) {
                         System.out.println("pageUp游戏内开始");
                         Platform.runLater(() -> startTraining("inGame"));
+                    }
+                    if (e.getKeyCode() == NativeKeyEvent.VC_LEFT) {
+                        System.out.println("左方向键执行一次附近物品识别");
+                        Platform.runLater(Main.this::detectNearbyItemsOnce);
                     }
                 }
 
@@ -755,6 +776,59 @@ public class Main extends Application {
             });
         }
     }
+
+    private synchronized void detectNearbyItemsOnce() {
+        try {
+            // 第一次按热键时加载配置和模板，后续按键复用同一个检测器实例。
+            if (nearbyItemDetector == null) {
+                NearbyItemDetectorConfig config = NearbyItemDetectorConfig.load(
+                        Path.of("nearby-item-detector.properties"));
+                nearbyItemDetector = new NearbyItemDetector(config);
+            }
+            // 详细结果同时包含最终匹配集合和每个槽位的两种模板分数。
+            NearbyItemDetector.DetectionResult result =
+                    nearbyItemDetector.detectDetailedOnce();
+            List<NearbyItemDetector.ItemMatch> matches = result.matches();
+            EnumSet<NearbyItemDetector.ItemType> detectedTypes =
+                    EnumSet.noneOf(NearbyItemDetector.ItemType.class);
+
+            // 每个槽位只打印一行，分别展示 PAN 和 STONE_FIRE 的相似度。
+            for (NearbyItemDetector.SlotSimilarity slot : result.slotSimilarities()) {
+                if (slot.detectedType() != null) {
+                    detectedTypes.add(slot.detectedType());
+                }
+                System.out.printf(
+                        Locale.ROOT,
+                        "SLOT -> row=%d col=%d x=%d y=%d "
+                                + "panSimilarity=%.3f stoneFireSimilarity=%.3f detected=%s%n",
+                        slot.row(), slot.col(), slot.screenX(), slot.screenY(),
+                        slot.panSimilarity(), slot.stoneFireSimilarity(),
+                        slot.detectedType() == null ? "NONE" : slot.detectedType());
+            }
+
+            // 每种未识别到的物品都单独打印，避免无法判断是漏打印还是未匹配。
+            for (NearbyItemDetector.ItemType type : NearbyItemDetector.ItemType.values()) {
+                if (!detectedTypes.contains(type)) {
+                    System.out.printf("%s -> NOT_DETECTED%n", type);
+                }
+            }
+
+            // 一轮识别结束后，把所有物品结果传给通用 Robot 操作线程。
+            stopNearbyItemRobotThread();
+            nearbyItemRobotThread = new NearbyItemRobotThread(matches);
+            nearbyItemRobotThread.start();
+        } catch (Exception e) {
+            System.err.println("附近物品识别失败: " + e.getMessage());
+        }
+    }
+
+    private synchronized void stopNearbyItemRobotThread() {
+        if (nearbyItemRobotThread != null) {
+            nearbyItemRobotThread.requestStop();
+            nearbyItemRobotThread = null;
+        }
+    }
+
     /**
      * 新增：根据服务器重启时间，自动 stop → wait → start
      */

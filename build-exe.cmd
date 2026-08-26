@@ -91,6 +91,13 @@ if exist "fitness_config.properties" (
   exit /b 1
 )
 
+if exist "nearby-item-detector.properties" (
+  copy /y "nearby-item-detector.properties" "target\%APP_NAME%\nearby-item-detector.properties"
+) else (
+  echo [ERROR] nearby-item-detector.properties not found
+  exit /b 1
+)
+
 echo === clean temporary runtime ===
 rmdir /s /q "%RUNTIME_DIR%" 2>nul
 
