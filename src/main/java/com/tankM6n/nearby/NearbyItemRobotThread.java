@@ -81,11 +81,13 @@ public final class NearbyItemRobotThread extends Thread {
                 robot.delay(50);
                 robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
 
+
                 robot.delay(500);
                 findPanPositioon();
+                robot.delay(500);
 
-
-                robot.mouseMove(816 , 247);
+                // 选择第三个平底锅
+                robot.mouseMove(816 , 347);
                 robot.delay(500);
                 robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
                 robot.delay(50);
@@ -116,9 +118,11 @@ public final class NearbyItemRobotThread extends Thread {
                 rices.remove(0);
                 robot.mouseMove(riceX , riceY);
                 robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-                robot.delay(50);
-                robot.mouseMove(720 , 223);
-                robot.delay(300);
+                robot.delay(200);
+                robot.mouseMove(riceX+1 , riceY+1);
+                robot.delay(500);
+                robot.mouseMove(720 , 358);
+                robot.delay(500);
                 robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
 
                 robot.delay(500);
@@ -130,14 +134,30 @@ public final class NearbyItemRobotThread extends Thread {
 
                 robot.mouseMove(waterX , waterY);
                 robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-                robot.delay(50);
-                robot.mouseMove(762 , 223);
-                robot.delay(300);
+                robot.delay(200);
+                robot.mouseMove(waterX+1 , waterY+1);
+                robot.delay(500);
+                robot.mouseMove(762 , 358);
+                robot.delay(500);
                 robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
 
                 robot.delay(500);
 
-                robot.mouseMove(972  , 221);
+                robot.mouseMove(972  , 358);
+                robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                robot.delay(50);
+                robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+
+                //结束黑暗料理
+                robot.delay(1000);
+                robot.mouseMove(972  , 403);
+                robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                robot.delay(50);
+                robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+
+                //拿取黑暗料理
+                robot.delay(1000);
+                robot.mouseMove(800  , 400);
                 robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
                 robot.delay(50);
                 robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
@@ -169,7 +189,7 @@ public final class NearbyItemRobotThread extends Thread {
                 panPositionDetector = new RegionTemplateDetector(
                         new Rectangle(699, 40, 41, 282),
                         "classpath:/image/pingdiguo.png",
-                        0.800);
+                        0.900);
             }
 
             // 每次调用本方法都会重新截图识别；返回值先保留在方法局部变量中。
