@@ -6,6 +6,10 @@ package com.tankM6n;
 import com.tankM6n.nearby.NearbyItemDetector;
 import com.tankM6n.nearby.NearbyItemDetectorConfig;
 import com.tankM6n.nearby.NearbyItemRobotThread;
+import com.tankM6n.nearby.DetectionResult;
+import com.tankM6n.nearby.ItemMatch;
+import com.tankM6n.nearby.ItemType;
+import com.tankM6n.nearby.SlotSimilarity;
 import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.NativeHookException;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
@@ -786,14 +790,13 @@ public class Main extends Application {
                 nearbyItemDetector = new NearbyItemDetector(config);
             }
             // 详细结果同时包含最终匹配集合和每个槽位的两种模板分数。
-            NearbyItemDetector.DetectionResult result =
+            DetectionResult result =
                     nearbyItemDetector.detectDetailedOnce();
-            List<NearbyItemDetector.ItemMatch> matches = result.matches();
-            EnumSet<NearbyItemDetector.ItemType> detectedTypes =
-                    EnumSet.noneOf(NearbyItemDetector.ItemType.class);
+            List<ItemMatch> matches = result.matches();
+            EnumSet<ItemType> detectedTypes = EnumSet.noneOf(ItemType.class);
 
             // 每个槽位只打印一行，分别展示 PAN 和 STONE_FIRE 的相似度。
-            for (NearbyItemDetector.SlotSimilarity slot : result.slotSimilarities()) {
+            for (SlotSimilarity slot : result.slotSimilarities()) {
                 if (slot.detectedType() != null) {
                     detectedTypes.add(slot.detectedType());
                 }
@@ -807,7 +810,7 @@ public class Main extends Application {
             }
 
             // 每种未识别到的物品都单独打印，避免无法判断是漏打印还是未匹配。
-            for (NearbyItemDetector.ItemType type : NearbyItemDetector.ItemType.values()) {
+            for (ItemType type : ItemType.values()) {
                 if (!detectedTypes.contains(type)) {
                     System.out.printf("%s -> NOT_DETECTED%n", type);
                 }

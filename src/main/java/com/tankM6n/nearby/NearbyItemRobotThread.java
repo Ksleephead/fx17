@@ -13,10 +13,10 @@ import java.util.Objects;
  * 当前只搭建通用遍历入口，尚未加入鼠标移动或点击行为。
  */
 public final class NearbyItemRobotThread extends Thread {
-    private final List<NearbyItemDetector.ItemMatch> itemMatches;
+    private final List<ItemMatch> itemMatches;
     private Robot robot;
 
-    public NearbyItemRobotThread(List<NearbyItemDetector.ItemMatch> itemMatches) {
+    public NearbyItemRobotThread(List<ItemMatch> itemMatches) {
         super("scum-nearby-item-robot");
         this.itemMatches = List.copyOf(Objects.requireNonNull(itemMatches, "itemMatches"));
     }
@@ -29,7 +29,7 @@ public final class NearbyItemRobotThread extends Thread {
             }
 
             robot = new Robot();
-            for (NearbyItemDetector.ItemMatch itemMatch : itemMatches) {
+            for (ItemMatch itemMatch : itemMatches) {
                 if (Thread.currentThread().isInterrupted()) {
                     return;
                 }
@@ -46,7 +46,7 @@ public final class NearbyItemRobotThread extends Thread {
      * 单个物品的 Robot 操作入口。
      * 可根据 itemMatch.type() 区分 PAN 和 STONE_FIRE，再使用屏幕坐标操作。
      */
-    private void processItem(NearbyItemDetector.ItemMatch itemMatch) {
+    private void processItem(ItemMatch itemMatch) {
         // 识别结果已由 Main 统一打印，此处只保留后续 Robot 操作入口。
         // 暂不调用 robot.mouseMove、mousePress 或 mouseRelease。
     }
