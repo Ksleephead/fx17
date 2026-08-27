@@ -59,8 +59,8 @@ public final class NearbyItemDetector {
                 new ItemTemplate(
                         ItemType.CORN,
                         loadGrayTemplate(config.cornTemplatePath()),
-                        config.riceIconOffsetX(),
-                        config.riceIconOffsetY(),
+                        config.cornIconOffsetX(),
+                        config.cornIconOffsetY(),
                         config.cornSimilarityThreshold()));
 
         // 模板尺寸各不相同，加载后逐个检查 ±radius 搜索范围是否仍在槽位内。

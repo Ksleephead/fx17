@@ -3,13 +3,7 @@
 
 package com.tankM6n;
 
-import com.tankM6n.nearby.NearbyItemDetector;
-import com.tankM6n.nearby.NearbyItemDetectorConfig;
-import com.tankM6n.nearby.NearbyItemRobotThread;
-import com.tankM6n.nearby.DetectionResult;
-import com.tankM6n.nearby.ItemMatch;
-import com.tankM6n.nearby.ItemType;
-import com.tankM6n.nearby.SlotSimilarity;
+import com.tankM6n.nearby.*;
 import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.NativeHookException;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
@@ -45,11 +39,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class Main extends Application {
     // 五个独立的成员变量
@@ -110,6 +100,7 @@ public class Main extends Application {
 
     // 接收检测结果并执行后续 Robot 操作的独立线程。
     private volatile NearbyItemRobotThread nearbyItemRobotThread;
+    private volatile cookCornThread cookCornThread;
 
     // 累计炼体时长。运行期间使用单调时钟，避免系统时间调整影响计时。
     private long accumulatedTrainingMillis;
@@ -121,7 +112,18 @@ public class Main extends Application {
     private MediaPlayer notificationPlayer;
 
     private ExecutorService service;
-
+    private static ThreadPoolExecutor executor;
+    static {
+        executor = new ThreadPoolExecutor(
+                2,                      // 核心线程数（一直存活的线程数）
+                5,                      // 最大线程数（队列满时最多能创建多少个线程）
+                60,                     // 空闲线程存活时间
+                TimeUnit.SECONDS,       // 存活时间单位
+                new LinkedBlockingQueue<>(10), // 任务队列（最多容纳10个等待任务）
+                Executors.defaultThreadFactory(), // 线程工厂
+                new ThreadPoolExecutor.CallerRunsPolicy() // 拒绝策略：由提交任务的线程自己执行
+        );
+    }
     @Override
     public void start(Stage primaryStage) {
         this.mainStage = primaryStage;
@@ -596,7 +598,7 @@ public class Main extends Application {
             );
 
             // 启动线程
-            trainingThread.start();
+            executor.execute(trainingThread);
             beginTrainingDuration();
             playNotificationSound("/audio/start.mp3");
 
@@ -622,6 +624,10 @@ public class Main extends Application {
         if (service != null) {
             service.shutdownNow();
             service = null;
+        }
+        if (executor != null) {
+            executor.shutdownNow();
+            executor = null;
         }
 
         if (wasTiming) {
@@ -823,8 +829,13 @@ public class Main extends Application {
 
             // 一轮识别结束后，把所有物品结果传给通用 Robot 操作线程。
             stopNearbyItemRobotThread();
-            nearbyItemRobotThread = new NearbyItemRobotThread(matches);
-            nearbyItemRobotThread.start();
+            //TODO 做米饭的线程
+//            nearbyItemRobotThread = new NearbyItemRobotThread(matches);
+//            executor.submit(nearbyItemRobotThread);
+            //TODO 做烤玉米线程
+            cookCornThread = new cookCornThread(matches , executor);
+            executor.execute(cookCornThread);
+
         } catch (Exception e) {
             System.err.println("附近物品识别失败: " + e.getMessage());
         }

@@ -8,6 +8,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.stream.Collectors;
 
 /**
@@ -40,12 +41,12 @@ public final class NearbyItemRobotThread extends Thread {
 
             //关闭tab
             robot.keyPress(KeyEvent.VK_TAB);
-            robot.delay(50);
+            safeDelay(50);
             robot.keyRelease(KeyEvent.VK_TAB);
             // 开始做饭
 
 
-            robot.delay(1 * 1000);
+            safeDelay(1 * 1000);
             for (ItemMatch rice : rices) {
                 ItemMatch pan = null;
                 ItemMatch water = null;
@@ -61,6 +62,9 @@ public final class NearbyItemRobotThread extends Thread {
 //                cook(rice, pan, water);
 
             }
+        } catch (CancellationException e) {
+            // 收到停止信号后直接结束，避免跳过延时继续执行剩余 Robot 操作。
+            Thread.currentThread().interrupt();
         } catch (AWTException e) {
             System.err.println("创建附近物品操作 Robot 失败: " + e.getMessage());
         } catch (RuntimeException e) {
@@ -74,28 +78,28 @@ public final class NearbyItemRobotThread extends Thread {
         int y = pan.screenY();
         //打开tab
         robot.keyPress(KeyEvent.VK_TAB);
-        robot.delay(50);
+        safeDelay(50);
         robot.keyRelease(KeyEvent.VK_TAB);
 
-        robot.delay(500);
+        safeDelay(500);
         robot.mouseMove(x , y);
-        robot.delay(200);
+        safeDelay(200);
         robot.mousePress(MouseEvent.BUTTON3_DOWN_MASK);
-        robot.delay(50);
+        safeDelay(50);
         robot.mouseRelease(MouseEvent.BUTTON3_DOWN_MASK);
 
         //移动到烹饪食品上面
-        robot.delay(500);
+        safeDelay(500);
         robot.mouseMove(x + 20 , y + 80);
-        robot.delay(500);
+        safeDelay(500);
         robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-        robot.delay(50);
+        safeDelay(50);
         robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
 
 
-        robot.delay(500);
+        safeDelay(500);
         List<ScreenTemplateMatch> panPositions = findPanPositions();
-        robot.delay(500);
+        safeDelay(500);
 
         for (ScreenTemplateMatch panPosition : panPositions) {
             int pingdiguoX = panPosition.screenX();
@@ -103,67 +107,67 @@ public final class NearbyItemRobotThread extends Thread {
 
             //点进烹饪界面
             robot.mouseMove(pingdiguoX , pingdiguoY + 40);
-            robot.delay(500);
+            safeDelay(500);
             robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-            robot.delay(50);
+            safeDelay(50);
             robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
 
             //选择米饭
-            robot.delay(500);
+            safeDelay(500);
             robot.mouseMove(847 , 586);
-            robot.delay(500);
+            safeDelay(500);
             robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-            robot.delay(50);
+            safeDelay(50);
             robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
 
             //点击烹饪
-            robot.delay(500);
+            safeDelay(500);
             robot.mouseMove(964 , 732);
-            robot.delay(500);
+            safeDelay(500);
             robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-            robot.delay(50);
+            safeDelay(50);
             robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
 
-            robot.delay(500);
+            safeDelay(500);
 
 
             boolean riceRst = moveRice(rice, pingdiguoX, pingdiguoY, 0);
             if (!riceRst){
                 //关闭tab
                 robot.keyPress(KeyEvent.VK_TAB);
-                robot.delay(50);
+                safeDelay(50);
                 robot.keyRelease(KeyEvent.VK_TAB);
                 //下一个米饭
                 return;
             }
-            robot.delay(500);
+            safeDelay(500);
             moveWater(water, pingdiguoX, pingdiguoY , 0);
 
-            robot.delay(500);
+            safeDelay(500);
 
             robot.mouseMove(pingdiguoX + 255, pingdiguoY + 36);
             robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-            robot.delay(50);
+            safeDelay(50);
             robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
         }
 
 //        //结束黑暗料理
-//        robot.delay(1000);
+//        safeDelay(1000);
 //        robot.mouseMove(972  , 403);
 //        robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-//        robot.delay(50);
+//        safeDelay(50);
 //        robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
 //
 //        //拿取黑暗料理
-//        robot.delay(1000);
+//        safeDelay(1000);
 //        robot.mouseMove(800  , 393);
 //        robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-//        robot.delay(50);
+//        safeDelay(50);
 //        robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
 
         //关闭tab
         robot.keyPress(KeyEvent.VK_TAB);
-        robot.delay(50);
+        safeDelay(50);
         robot.keyRelease(KeyEvent.VK_TAB);
     }
 
@@ -174,11 +178,11 @@ public final class NearbyItemRobotThread extends Thread {
 
         robot.mouseMove(waterX , waterY);
         robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-        robot.delay(200);
+        safeDelay(200);
         robot.mouseMove(waterX+1 , waterY+1);
-        robot.delay(500);
+        safeDelay(500);
         robot.mouseMove(pingdiguoX + 45, pingdiguoY + 45);
-        robot.delay(500);
+        safeDelay(500);
         robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
         //执行校验，是否正确托过去了
         Color riceColor = getPixelColor(pingdiguoX + 45, pingdiguoY + 45);
@@ -203,11 +207,11 @@ public final class NearbyItemRobotThread extends Thread {
         int maxTryTimes = 3;
         robot.mouseMove(riceX, riceY);
         robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-        robot.delay(200);
+        safeDelay(200);
         robot.mouseMove(riceX +1 , riceY +1);
-        robot.delay(500);
+        safeDelay(500);
         robot.mouseMove(pingdiguoX, pingdiguoY + 45);
-        robot.delay(500);
+        safeDelay(500);
         robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
         //执行校验，是否正确托过去了
         Color riceColor = getPixelColor(pingdiguoX, pingdiguoY + 45);
@@ -255,6 +259,26 @@ public final class NearbyItemRobotThread extends Thread {
             System.err.println("识别平底锅位置失败: " + e.getMessage());
         }
         return panPositions;
+    }
+
+    /** 可被 interrupt() 立即打断的延时。 */
+    private void safeDelay(long millis) {
+        long end = System.currentTimeMillis() + Math.max(0L, millis);
+        while (System.currentTimeMillis() < end) {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new CancellationException("Robot thread stopped");
+            }
+            long remaining = end - System.currentTimeMillis();
+            try {
+                Thread.sleep(Math.min(100L, remaining));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new CancellationException("Robot thread stopped");
+            }
+        }
+        if (Thread.currentThread().isInterrupted()) {
+            throw new CancellationException("Robot thread stopped");
+        }
     }
 
     /** 请求线程在处理下一个物品前结束。 */

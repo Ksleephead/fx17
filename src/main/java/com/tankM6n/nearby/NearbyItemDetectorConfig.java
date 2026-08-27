@@ -30,6 +30,8 @@ public record NearbyItemDetectorConfig(
         int riceIconOffsetY,
         int waterIconOffsetX,
         int waterIconOffsetY,
+        int cornIconOffsetX,
+        int cornIconOffsetY,
         int positionSearchRadius,
         String panTemplatePath,
         String stoneFireTemplatePath,
@@ -68,6 +70,8 @@ public record NearbyItemDetectorConfig(
                 integer(properties, "riceIconOffsetY"),
                 integer(properties, "waterIconOffsetX"),
                 integer(properties, "waterIconOffsetY"),
+                integer(properties, "cornIconOffsetX"),
+                integer(properties, "cornIconOffsetY"),
                 integer(properties, "positionSearchRadius"),
                 resolveTemplateLocation(properties, "panTemplatePath", absoluteConfigPath),
                 resolveTemplateLocation(properties, "stoneFireTemplatePath", absoluteConfigPath),
@@ -113,6 +117,7 @@ public record NearbyItemDetectorConfig(
         validateIconArea("stoneFire", stoneFireIconOffsetX, stoneFireIconOffsetY);
         validateIconArea("rice", riceIconOffsetX, riceIconOffsetY);
         validateIconArea("water", waterIconOffsetX, waterIconOffsetY);
+        validateIconArea("corn", cornIconOffsetX, cornIconOffsetY);
 
         long gridWidth = (long) cols * slotWidth + (long) (cols - 1) * slotGapX;
         long gridHeight = (long) rows * slotHeight + (long) (rows - 1) * slotGapY;
@@ -126,6 +131,7 @@ public record NearbyItemDetectorConfig(
         validateThreshold("stoneFireSimilarityThreshold", stoneFireSimilarityThreshold);
         validateThreshold("riceSimilarityThreshold", riceSimilarityThreshold);
         validateThreshold("waterSimilarityThreshold", waterSimilarityThreshold);
+        validateThreshold("cornSimilarityThreshold", cornSimilarityThreshold);
     }
 
     /** 不同物品在槽位内的位置不同，因此分别验证各自的裁剪偏移。 */
