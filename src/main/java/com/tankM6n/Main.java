@@ -769,7 +769,7 @@ public class Main extends Application {
                         Platform.runLater(() -> startTraining("inGame"));
                     }
                     if (e.getKeyCode() == NativeKeyEvent.VC_LEFT) {
-                        System.out.println("左方向键执行一次附近物品识别");
+                        System.out.println("左方向键执行一次附近物品识别+制作简易米饭");
                         Platform.runLater(Main.this::detectNearbyItemsOnce);
                     }
                 }
@@ -804,12 +804,13 @@ public class Main extends Application {
                         Locale.ROOT,
                         "SLOT -> row=%d col=%d x=%d y=%d "
                                 + "panSimilarity=%.3f stoneFireSimilarity=%.3f "
-                                + "riceSimilarity=%.3f waterSimilarity=%.3f detected=%s%n",
+                                + "riceSimilarity=%.3f waterSimilarity=%.3f cornSimilarity=%.3f detected=%s%n",
                         slot.row(), slot.col(), slot.screenX(), slot.screenY(),
                         slot.similarity(ItemType.PAN),
                         slot.similarity(ItemType.STONE_FIRE),
                         slot.similarity(ItemType.RICE),
                         slot.similarity(ItemType.WATER),
+                        slot.similarity(ItemType.CORN),
                         slot.detectedType() == null ? "NONE" : slot.detectedType());
             }
 

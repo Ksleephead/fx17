@@ -35,10 +35,12 @@ public record NearbyItemDetectorConfig(
         String stoneFireTemplatePath,
         String riceTemplatePath,
         String waterTemplatePath,
+        String cornTemplatePath,
         double panSimilarityThreshold,
         double stoneFireSimilarityThreshold,
         double riceSimilarityThreshold,
-        double waterSimilarityThreshold) {
+        double waterSimilarityThreshold,
+        double cornSimilarityThreshold) {
 
     public static NearbyItemDetectorConfig load(Path configPath) throws IOException {
         Path absoluteConfigPath = configPath.toAbsolutePath().normalize();
@@ -71,10 +73,12 @@ public record NearbyItemDetectorConfig(
                 resolveTemplateLocation(properties, "stoneFireTemplatePath", absoluteConfigPath),
                 resolveTemplateLocation(properties, "riceTemplatePath", absoluteConfigPath),
                 resolveTemplateLocation(properties, "waterTemplatePath", absoluteConfigPath),
+                resolveTemplateLocation(properties, "cornTemplatePath", absoluteConfigPath),
                 decimal(properties, "panSimilarityThreshold"),
                 decimal(properties, "stoneFireSimilarityThreshold"),
                 decimal(properties, "riceSimilarityThreshold"),
-                decimal(properties, "waterSimilarityThreshold"));
+                decimal(properties, "waterSimilarityThreshold"),
+                decimal(properties, "cornSimilarityThreshold"));
         config.validate();
         return config;
     }

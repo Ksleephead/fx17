@@ -494,21 +494,27 @@ public class xiangzi extends Thread {
             if ((intestine && (nengliang || danBaizhi))) {
                 //吃一口面粉
                 ensureRunning();
-                robot.keyPress(KeyEvent.VK_0);
-                safeDelay(50);
-                robot.keyRelease(KeyEvent.VK_0);
-                safeDelay(7 * 1000);
+                for (int j = 0; j < 4; j++) {
+                    robot.keyPress(KeyEvent.VK_0);
+                    safeDelay(50);
+                    robot.keyRelease(KeyEvent.VK_0);
+                    safeDelay(2 * 1000);
+                }
                 //防止卡背包，切换一下
-                ensureRunning();
-                robot.keyPress(KeyEvent.VK_3);
-                safeDelay(100);
-                robot.keyRelease(KeyEvent.VK_3);
+//                ensureRunning();
+//                robot.keyPress(KeyEvent.VK_3);
+//                safeDelay(100);
+//                robot.keyRelease(KeyEvent.VK_3);
+//                safeDelay(1 * 1000);
+//                ensureRunning();
+//                robot.keyPress(KeyEvent.VK_3);
+//                safeDelay(100);
+//                robot.keyRelease(KeyEvent.VK_3);
                 safeDelay(2 * 1000);
-                ensureRunning();
-                robot.keyPress(KeyEvent.VK_3);
-                safeDelay(100);
-                robot.keyRelease(KeyEvent.VK_3);
-                safeDelay(2 * 1000);
+                robot.keyPress(KeyEvent.VK_5);
+                safeDelay(300);
+                robot.keyRelease(KeyEvent.VK_5);
+                safeDelay(4000);
             }
             if (nengliang || danBaizhi){
                 System.out.println(LocalDateTime.now() + "能量+蛋白质其中之一不满足。需要吃" + nengliang + danBaizhi);

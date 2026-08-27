@@ -8,4 +8,18 @@ public record ScreenTemplateMatch(
         double similarity,
         int screenX,
         int screenY) {
+    @Override
+    public double similarity() {
+        return similarity;
+    }
+
+    @Override
+    public int screenX() {
+        return screenX;
+    }
+
+    @Override
+    public int screenY() {
+        return screenY;
+    }
 }

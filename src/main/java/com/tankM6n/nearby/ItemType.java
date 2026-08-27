@@ -8,7 +8,8 @@ public enum ItemType {
     PAN("pan"),
     STONE_FIRE("stoneFire"),
     RICE("rice"),
-    WATER("water");
+    WATER("water"),
+    CORN("corn");
 
     private final String displayName;
 
