@@ -143,7 +143,10 @@ public final class cookCornThread extends Thread {
                         ItemMatch corn = cornIterator.next();
                         int xBias = points[i][0];
                         int yBias = points[i][1];
-                        moveCorn(corn, pingdiguoX, pingdiguoY, 0, xBias, yBias);
+                        if (!moveCorn(corn, pingdiguoX, pingdiguoY, 0, xBias, yBias)) {
+                            corn = cornIterator.next();
+                            moveCorn(corn, pingdiguoX, pingdiguoY, 0, xBias, yBias);
+                        }
                     }
                 }
                 for (ScreenTemplateMatch panPosition : panPositions) {
@@ -214,7 +217,6 @@ public final class cookCornThread extends Thread {
                 try {
                     // ② 检测逻辑
                     Color color = getPixelColor(panPositions.get(0).screenX() + 17 , panPositions.get(0).screenY() + 110);
-                    robot.mouseMove(panPositions.get(0).screenX() - 20 , panPositions.get(0).screenY() + 110);
                     if (color.getBlue() < 50) {
                         System.out.println("✅ 条件满足！blue=" + color.getBlue());
                         conditionMet.set(true);   // 标记条件满足
@@ -252,35 +254,6 @@ public final class cookCornThread extends Thread {
     }
 
 
-    private boolean moveWater(ItemMatch water, int pingdiguoX, int pingdiguoY , int tryTimes) {
-        int maxTryTimes = 3;
-        int waterX = water.screenX();
-        int waterY = water.screenY();
-
-        robot.mouseMove(waterX , waterY);
-        robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-        safeDelay(200);
-        robot.mouseMove(waterX+1 , waterY+1);
-        safeDelay(500);
-        robot.mouseMove(pingdiguoX + 45, pingdiguoY + 45);
-        safeDelay(500);
-        robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
-        //执行校验，是否正确托过去了
-        Color riceColor = getPixelColor(pingdiguoX + 45, pingdiguoY + 45);
-        if (riceColor.getBlue()  <= 100){
-            if (tryTimes < maxTryTimes) {
-                tryTimes++;
-                //递归调用本身
-                return moveWater(water, pingdiguoX, pingdiguoY , tryTimes);
-            }else {
-                //填充失败
-                return false;
-            }
-        }else {
-            //填充成功
-            return true;
-        }
-    }
 
     private boolean moveCorn(ItemMatch corn , int pingdiguoX, int pingdiguoY , int tryTimes , int xBias , int yBias) {
         int cornX = corn.screenX();
@@ -288,7 +261,7 @@ public final class cookCornThread extends Thread {
         int maxTryTimes = 10;
         robot.mouseMove(cornX, cornY);
         robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-        safeDelay(200);
+        safeDelay(300);
         robot.mouseMove(cornX +1 , cornY +1);
         safeDelay(500);
         robot.mouseMove(pingdiguoX + xBias, pingdiguoY + yBias);
