@@ -38,6 +38,8 @@ public class xiangzi extends Thread {
     Robot robot;
 
     private ExecutorService executor;
+    //是否需要强制休息
+    private volatile boolean needRest;
 
     // 添加构造方法接收6个double参数
 
@@ -59,6 +61,7 @@ public class xiangzi extends Thread {
     @Override
     public void run() {
         try {
+            needRest = false;
             robot = new Robot();
             running = true;
             zaxiangzi();
@@ -112,7 +115,8 @@ public class xiangzi extends Thread {
     }
 
     private boolean checkcIntestine() {
-        Color intestinelColor = getPixelColor(803, 556); //肠道的50%
+//        Color intestinelColor = getPixelColor(803, 556); //肠道的50%
+        Color intestinelColor = getPixelColor(779, 492); //肠道的80%
 
         int blue = intestinelColor.getBlue();
         int red = intestinelColor.getRed();
@@ -130,7 +134,7 @@ public class xiangzi extends Thread {
     }
 
     private boolean checkWater() {
-        Color intestinelColor = getPixelColor(932, 102); //水的20%
+        Color intestinelColor = getPixelColor(956, 37); //水的20%
 
         int blue = intestinelColor.getBlue();
 
@@ -284,7 +288,8 @@ public class xiangzi extends Thread {
     }
 
     public boolean checkStomach() {
-        Color stomachlColor = getPixelColor(717, 556); //大概是胃的50%
+//        Color stomachlColor = getPixelColor(717, 556); //大概是胃的50%
+        Color stomachlColor = getPixelColor(691, 543); //大概是胃的60%
         int blue = stomachlColor.getBlue();
         int red = stomachlColor.getRed();
         int green = stomachlColor.getGreen();
@@ -299,7 +304,7 @@ public class xiangzi extends Thread {
         return false;
     }
     public boolean checkNengLiang() {
-        Color stomachlColor = getPixelColor(765, 29);
+        Color stomachlColor = getPixelColor(783, 38);
         int blue = stomachlColor.getBlue();
 
         if (blue > 90) {
@@ -311,10 +316,10 @@ public class xiangzi extends Thread {
         return true;
     }
     public boolean checkDanBaiZhi() {
-        Color stomachlColor = getPixelColor(700, 150);
+        Color stomachlColor = getPixelColor(700, 179);
         int blue = stomachlColor.getBlue();
 
-        if (blue > 90) {
+        if (blue > 60) {
             System.out.println(LocalDateTime.now() + "蛋白质充足");
             //是蓝色，那就不需要吃东西
             return false;
@@ -388,6 +393,89 @@ public class xiangzi extends Thread {
         for (int i = 0; i < Integer.MAX_VALUE && running; i++) {
             if (!running) {
                 break;
+            }
+            if (needRest){
+                //休息+启动探针线程
+                recoveryTab(robot);
+                safeDelay(2000);
+                //打开tab
+                tabSwitch();
+                robot.keyPress(KeyEvent.VK_4);
+                safeDelay(50);
+                robot.keyRelease(KeyEvent.VK_4);
+                // 1. 创建一个计数器为 1 的闩锁
+                CountDownLatch latch = new CountDownLatch(1);
+
+                // 2. 创建定时线程池
+                ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
+                // 3. 提交定时任务
+                scheduler.scheduleAtFixedRate(() -> {
+                    try {
+                        boolean intestine = checkcIntestine();
+                        boolean stomach = checkStomach();
+                        boolean nengliang = true;
+                        boolean danBaizhi = true;
+
+                        Color nengliangColor = getPixelColor(751, 30);//差不多是能量的90%
+                        int blue = nengliangColor.getBlue();
+
+                        if (blue > 90) {
+                            System.out.println(LocalDateTime.now() + "能量充足");
+                            //是蓝色，那就不需要吃东西
+                            nengliang = false;
+                        }
+
+                        Color danbaizhiColor = getPixelColor(700, 150);//蛋白质
+                        int blue2 = danbaizhiColor.getBlue();
+
+                        if (blue2 > 90) {
+                            System.out.println(LocalDateTime.now() + "能量充足");
+                            //是蓝色，那就不需要吃东西
+                            nengliang = false;
+                        }
+
+
+                        if (nengliang || danBaizhi) {
+                            if (stomach && intestine) {
+                                for (int j = 0; j < 4; j++) {
+                                    robot.keyPress(KeyEvent.VK_0);
+                                    safeDelay(50);
+                                    robot.keyRelease(KeyEvent.VK_0);
+                                    safeDelay(4 * 1000);
+                                    robot.keyPress(KeyEvent.VK_4);
+                                    safeDelay(50);
+                                    robot.keyRelease(KeyEvent.VK_4);
+                                    safeDelay(4 * 1000);
+                                    robot.keyPress(KeyEvent.VK_9);
+                                    safeDelay(50);
+                                    robot.keyRelease(KeyEvent.VK_9);
+                                    safeDelay(4 * 1000);
+                                }
+                            }
+                        }
+
+                        if (true) {
+                            needRest = false;
+                            System.out.println("✅ 条件满足！准备唤醒外面线程...");
+                            latch.countDown(); // 计数器减为 0，唤醒外面等待的线程
+                            return;
+                        }
+                        System.out.println("⏳ 条件未满足，继续检测...");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }, 1, 1, TimeUnit.MINUTES);
+
+                // 4. 外面的线程在这里阻塞等待（相当于 wait）
+                System.out.println("阻塞等待中...");
+                latch.await(); // 阻塞，直到 latch.countDown() 被调用
+
+                // 5. 被唤醒后，关闭线程池
+                System.out.println("被唤醒，关闭线程池...");
+                scheduler.shutdown();
+
+
             }
             //开局修手套
             if (i == 0){
@@ -489,7 +577,26 @@ public class xiangzi extends Thread {
         tabSwitch();
         safeDelay(500);
 
+        // 2026.08.25版本更新削弱消化
+//      oldEat(stomach, intestine, nengliang, danBaizhi, water);
+        //新版本策略，只要胃还能吃得下，就一直吃，直到肠道满了,如果能量和蛋白质还能跟上，就接着炼体，如果能量或蛋白质或水有一项不满足，就休息
 
+        if (stomach && intestine) {
+            for (int j = 0; j < 4; j++) {
+                robot.keyPress(KeyEvent.VK_0);
+                safeDelay(50);
+                robot.keyRelease(KeyEvent.VK_0);
+                safeDelay(2 * 1000);
+            }
+        }
+        //满足任意条件 就强制休息
+        if (nengliang || danBaizhi || water){
+            System.err.println("检测到能量或蛋白质或水分不足！，强制休息");
+            needRest = true;
+        }
+    }
+
+    private void oldEat(boolean stomach, boolean intestine, boolean nengliang, boolean danBaizhi, boolean water) throws InterruptedException {
         if (enableAutoEat && stomach) {
             if ((intestine && (nengliang || danBaizhi))) {
                 //吃一口面粉
@@ -510,11 +617,11 @@ public class xiangzi extends Thread {
 //                robot.keyPress(KeyEvent.VK_3);
 //                safeDelay(100);
 //                robot.keyRelease(KeyEvent.VK_3);
-                safeDelay(2 * 1000);
-                robot.keyPress(KeyEvent.VK_5);
-                safeDelay(300);
-                robot.keyRelease(KeyEvent.VK_5);
-                safeDelay(4000);
+//                safeDelay(2 * 1000);
+//                robot.keyPress(KeyEvent.VK_5);
+//                safeDelay(300);
+//                robot.keyRelease(KeyEvent.VK_5);
+//                safeDelay(4000);
             }
             if (nengliang || danBaizhi){
                 System.out.println(LocalDateTime.now() + "能量+蛋白质其中之一不满足。需要吃" + nengliang + danBaizhi);
@@ -556,7 +663,6 @@ public class xiangzi extends Thread {
         safeDelay(100);
         robot.keyRelease(KeyEvent.VK_3);
         safeDelay(2 * 1000);
-
     }
 
     private void iQDetect() throws InterruptedException {
@@ -600,10 +706,10 @@ public class xiangzi extends Thread {
             robot.keyRelease(KeyEvent.VK_8);
             safeDelay(5000);
             ensureRunning();
-            robot.keyPress(KeyEvent.VK_8);
-            safeDelay(50);
-            robot.keyRelease(KeyEvent.VK_8);
-            safeDelay(5 * 1000);
+//            robot.keyPress(KeyEvent.VK_8);
+//            safeDelay(50);
+//            robot.keyRelease(KeyEvent.VK_8);
+//            safeDelay(5 * 1000);
         }
     }
 

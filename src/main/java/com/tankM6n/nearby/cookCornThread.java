@@ -163,7 +163,7 @@ public final class cookCornThread extends Thread {
             detectCookStatus();
             for (ScreenTemplateMatch panPosition : panPositions) {
                 //结束黑暗料理
-                safeDelay(500);
+                safeDelay(1000);
                 robot.mouseMove(panPosition.screenX() + 255  , panPosition.screenY() + 81);
                 robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
                 safeDelay(50);
@@ -172,7 +172,7 @@ public final class cookCornThread extends Thread {
 
             for (ScreenTemplateMatch panPosition : panPositions) {
                 //拿取黑暗料理
-                safeDelay(500);
+                safeDelay(1000);
                 robot.mouseMove(panPosition.screenX() + 92  , panPosition.screenY() + 82);
                 robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
                 safeDelay(50);
@@ -237,7 +237,7 @@ public final class cookCornThread extends Thread {
 
         // ===== 启动第一次检测 =====
         System.out.println("🚀 启动检测任务...");
-        scheduler.schedule(checkTask, 1, TimeUnit.SECONDS);
+        scheduler.schedule(checkTask, 5, TimeUnit.SECONDS);
 
         // ===== 外面线程阻塞等待（相当于 wait）=====
         latch.await();  // 阻塞，直到条件满足 或 超过最大深度
