@@ -23,13 +23,11 @@ public final class cookCornThread extends Thread {
     private final List<ItemMatch> itemMatches;
     private Robot robot;
     private RegionTemplateDetector panPositionDetector;
-    private ThreadPoolExecutor executor;
     private volatile List<ScreenTemplateMatch> panPositions;
 
-    public cookCornThread(List<ItemMatch> itemMatches , ThreadPoolExecutor executor) {
+    public cookCornThread(List<ItemMatch> itemMatches) {
         super("scum-nearby-item-robot");
         this.itemMatches = List.copyOf(Objects.requireNonNull(itemMatches, "itemMatches"));
-        this.executor = executor;
     }
 
     @Override
@@ -222,8 +220,6 @@ public final class cookCornThread extends Thread {
                         conditionMet.set(true);   // 标记条件满足
                         latch.countDown();        // 唤醒外面线程
                         return;                   // 不再调度，任务结束
-                    }else {
-                        System.out.println("第" + currentAttempt + "次尝试，blue值" + color.getBlue());
                     }
                     // ③ 条件未满足，继续递归调度（1 秒后执行下一次）
                     scheduler.schedule(this, checkInterval, TimeUnit.SECONDS);

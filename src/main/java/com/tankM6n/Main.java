@@ -82,6 +82,10 @@ public class Main extends Application {
     private volatile String serverRestartTime = "4";        // 服务器重启时间（默认4点）
     private volatile String serverRestartInterval = "6";    // 服务器重启间隔（默认6小时）
 
+    // 制作烤玉米数量，界面可选择 1～50，默认制作 1 个。
+    private ComboBox<Integer> cornCookCountComboBox;
+    private volatile int cornCookCount = 1;
+
     private ScheduledExecutorService restartScheduler;
     // Codex生成：保存唯一的重启检查任务，避免重连后重复创建定时任务。
     private ScheduledFuture<?> restartCheckTask;
@@ -101,6 +105,8 @@ public class Main extends Application {
     // 接收检测结果并执行后续 Robot 操作的独立线程。
     private volatile NearbyItemRobotThread nearbyItemRobotThread;
     private volatile cookCornThread cookCornThread;
+    // 控制多轮烤玉米的外层线程；与单轮 cookCornThread 分开，便于停止整个 cook()。
+    private volatile Thread cookTaskThread;
 
     // 累计炼体时长。运行期间使用单调时钟，避免系统时间调整影响计时。
     private long accumulatedTrainingMillis;
@@ -112,18 +118,6 @@ public class Main extends Application {
     private MediaPlayer notificationPlayer;
 
     private ExecutorService service;
-    private static ThreadPoolExecutor executor;
-    static {
-        executor = new ThreadPoolExecutor(
-                2,                      // 核心线程数（一直存活的线程数）
-                5,                      // 最大线程数（队列满时最多能创建多少个线程）
-                60,                     // 空闲线程存活时间
-                TimeUnit.SECONDS,       // 存活时间单位
-                new LinkedBlockingQueue<>(10), // 任务队列（最多容纳10个等待任务）
-                Executors.defaultThreadFactory(), // 线程工厂
-                new ThreadPoolExecutor.CallerRunsPolicy() // 拒绝策略：由提交任务的线程自己执行
-        );
-    }
     @Override
     public void start(Stage primaryStage) {
         this.mainStage = primaryStage;
@@ -293,24 +287,45 @@ public class Main extends Application {
         serverRestartIntervalComboBox.setValue(serverRestartInterval);
         serverRestartIntervalComboBox.valueProperty().addListener((obs, o, n) -> serverRestartInterval = n);
 
+        // ===================== 制作烤玉米数量 =====================
+        Label cornCookCountLabel = new Label("制作烤玉米个数：");
+        cornCookCountLabel.setLayoutX(20);
+        cornCookCountLabel.setLayoutY(475);
+
+        cornCookCountComboBox = new ComboBox<>();
+        ObservableList<Integer> cornCookCountOptions = FXCollections.observableArrayList();
+        for (int i = 1; i <= 50; i++) {
+            cornCookCountOptions.add(i);
+        }
+        cornCookCountComboBox.setItems(cornCookCountOptions);
+        cornCookCountComboBox.setLayoutX(220);
+        cornCookCountComboBox.setLayoutY(475);
+        cornCookCountComboBox.setPrefWidth(120);
+        cornCookCountComboBox.setValue(1);
+        cornCookCountComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue != null) {
+                cornCookCount = newValue;
+            }
+        });
+
         // 添加编辑/保存按钮
         editSaveButton = new Button("编辑");
         editSaveButton.setLayoutX(20);
-        editSaveButton.setLayoutY(475);
+        editSaveButton.setLayoutY(510);
         editSaveButton.setPrefWidth(150);
         editSaveButton.setOnAction(event -> toggleEditMode());
 
         // 添加开始训练按钮
         Button startButton = new Button("开始训练");
         startButton.setLayoutX(180);
-        startButton.setLayoutY(475);
+        startButton.setLayoutY(510);
         startButton.setPrefWidth(150);
         startButton.setOnAction(event -> startTraining("default"));
 
         // 添加停止训练按钮
         Button stopButton = new Button("停止训练");
         stopButton.setLayoutX(340);
-        stopButton.setLayoutY(475);
+        stopButton.setLayoutY(510);
         stopButton.setPrefWidth(150);
         stopButton.setOnAction(event -> stopTraining());
 
@@ -333,11 +348,12 @@ public class Main extends Application {
                 caffeineCheckBox, autoEatCheckBox,
                 serverRestartLabel, serverRestartComboBox,
                 serverRestartIntervalLabel, serverRestartIntervalComboBox,
+                cornCookCountLabel, cornCookCountComboBox,
                 editSaveButton, startButton, stopButton,
                 trainingDurationLabel, trainingDurationField);
 
         // 设置场景和舞台
-        Scene scene = new Scene(root, 500, 545); // 增加高度以适应新提示
+        Scene scene = new Scene(root, 500, 580); // 增加高度以容纳烤玉米数量下拉框
         primaryStage.setTitle("SCUM创可贴免费炼体器(作者：GorphynMars)");
         primaryStage.setScene(scene);
 
@@ -439,6 +455,7 @@ public class Main extends Application {
         serverRestartComboBox.setDisable(!editable);
         // Codex生成：重启间隔只允许在编辑模式下修改。
         serverRestartIntervalComboBox.setDisable(!editable);
+        cornCookCountComboBox.setDisable(!editable);
     }
 
     /**
@@ -536,6 +553,7 @@ public class Main extends Application {
      * 窗口关闭事件处理
      */
     private void handleWindowClose(WindowEvent event) {
+        stopCook();
         stopTraining(); // 确保线程停止
         stopNearbyItemRobotThread();
         unregisterNativeHook();
@@ -598,7 +616,7 @@ public class Main extends Application {
             );
 
             // 启动线程
-            executor.execute(trainingThread);
+            trainingThread.start();
             beginTrainingDuration();
             playNotificationSound("/audio/start.mp3");
 
@@ -625,9 +643,8 @@ public class Main extends Application {
             service.shutdownNow();
             service = null;
         }
-        if (executor != null) {
-            executor.shutdownNow();
-            executor = null;
+        if (cookCornThread != null){
+            cookCornThread.interrupt();
         }
 
         if (wasTiming) {
@@ -765,6 +782,8 @@ public class Main extends Application {
                 public void nativeKeyPressed(NativeKeyEvent e) {
                     if (e.getKeyCode() == NativeKeyEvent.VC_DOWN || e.getKeyCode() == NativeKeyEvent.VC_PAGE_DOWN) {
                         System.out.println("停止按钮生效");
+                        // 直接从热键线程发出停止信号，不能等待 JavaFX UI 线程处理。
+                        stopCook();
                         Platform.runLater(() -> {
                             stopTraining();
                             stopNearbyItemRobotThread();
@@ -776,7 +795,7 @@ public class Main extends Application {
                     }
                     if (e.getKeyCode() == NativeKeyEvent.VC_LEFT) {
                         System.out.println("左方向键执行一次附近物品识别+制作简易米饭");
-                        Platform.runLater(Main.this::detectNearbyItemsOnce);
+                        startCook();
                     }
                 }
 
@@ -787,7 +806,71 @@ public class Main extends Application {
         }
     }
 
-    private synchronized void detectNearbyItemsOnce() {
+    /** 在独立线程中执行多轮烤玉米，避免 join() 阻塞 JavaFX UI 线程。 */
+    private synchronized void startCook() {
+        if (cookTaskThread != null && cookTaskThread.isAlive()) {
+            System.out.println("烤玉米任务正在运行");
+            return;
+        }
+
+        Thread task = new Thread(() -> {
+            try {
+                cook();
+            } finally {
+                synchronized (Main.this) {
+                    if (cookTaskThread == Thread.currentThread()) {
+                        cookTaskThread = null;
+                    }
+                }
+            }
+        }, "scum-cook-controller");
+        cookTaskThread = task;
+        task.start();
+    }
+
+    /** 同时停止 cook() 外层循环和当前正在执行的单轮 Robot 线程。 */
+    private void stopCook() {
+        Thread task = cookTaskThread;
+        if (task != null) {
+            task.interrupt();
+        }
+
+        cookCornThread currentCookThread = cookCornThread;
+        if (currentCookThread != null) {
+            currentCookThread.requestStop();
+        }
+    }
+
+    private void cook(){
+        //TODO 做米饭的线程
+//            nearbyItemRobotThread = new NearbyItemRobotThread(matches);
+//            executor.submit(nearbyItemRobotThread);
+        //TODO 做烤玉米线程
+        for (int i = 0 ; i < cornCookCount && !Thread.currentThread().isInterrupted(); i++) {
+            System.out.println(i + "    cornCookCount    " + cornCookCount);
+            List<ItemMatch> matches = detectNearbyItemsOnce();
+            if (Thread.currentThread().isInterrupted()) {
+                return;
+            }
+            if (matches != null && matches.size() > 0) {
+                cookCornThread currentCookThread = new cookCornThread(matches);
+                cookCornThread = currentCookThread;
+                currentCookThread.start();
+                try {
+                    currentCookThread.join();
+                } catch (InterruptedException e) {
+                    currentCookThread.requestStop();
+                    Thread.currentThread().interrupt();
+                    return;
+                } finally {
+                    if (cookCornThread == currentCookThread) {
+                        cookCornThread = null;
+                    }
+                }
+            }
+        }
+    }
+    private synchronized List<ItemMatch> detectNearbyItemsOnce() {
         try {
             // 第一次按热键时加载配置和模板，后续按键复用同一个检测器实例。
             if (nearbyItemDetector == null) {
@@ -829,22 +912,21 @@ public class Main extends Application {
 
             // 一轮识别结束后，把所有物品结果传给通用 Robot 操作线程。
             stopNearbyItemRobotThread();
-            //TODO 做米饭的线程
-//            nearbyItemRobotThread = new NearbyItemRobotThread(matches);
-//            executor.submit(nearbyItemRobotThread);
-            //TODO 做烤玉米线程
-            cookCornThread = new cookCornThread(matches , executor);
-            executor.execute(cookCornThread);
-
+            return matches;
         } catch (Exception e) {
             System.err.println("附近物品识别失败: " + e.getMessage());
         }
+        return null;
     }
 
     private synchronized void stopNearbyItemRobotThread() {
         if (nearbyItemRobotThread != null) {
             nearbyItemRobotThread.requestStop();
             nearbyItemRobotThread = null;
+        }
+        if (cookCornThread != null) {
+            cookCornThread.requestStop();
+            cookCornThread = null;
         }
     }
 
