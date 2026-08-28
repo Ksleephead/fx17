@@ -898,7 +898,7 @@ public class Main extends Application {
             robot.keyPress(KeyEvent.VK_TAB);
             safeDelay(50);
             robot.keyRelease(KeyEvent.VK_TAB);
-            safeDelay(200);
+            safeDelay(500);
             //打开1面板
             robot.keyPress(KeyEvent.VK_1);
             safeDelay(50);

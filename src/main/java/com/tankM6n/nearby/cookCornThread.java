@@ -163,20 +163,22 @@ public final class cookCornThread extends Thread {
             detectCookStatus();
             for (ScreenTemplateMatch panPosition : panPositions) {
                 //结束黑暗料理
-                safeDelay(1000);
                 robot.mouseMove(panPosition.screenX() + 255  , panPosition.screenY() + 81);
+                safeDelay(500);
                 robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
                 safeDelay(50);
                 robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+                safeDelay(1000);
             }
-
+            safeDelay(1000);
             for (ScreenTemplateMatch panPosition : panPositions) {
                 //拿取黑暗料理
-                safeDelay(1000);
                 robot.mouseMove(panPosition.screenX() + 92  , panPosition.screenY() + 82);
+                safeDelay(500);
                 robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
                 safeDelay(50);
                 robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+                safeDelay(1000);
             }
         } catch (CancellationException | InterruptedException e) {
             // 收到停止信号后直接结束，避免跳过延时继续执行剩余 Robot 操作。

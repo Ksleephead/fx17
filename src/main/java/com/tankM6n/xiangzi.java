@@ -3,6 +3,8 @@
 
 package com.tankM6n;
 
+import org.springframework.cglib.core.Local;
+
 import java.awt.*;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -250,9 +252,11 @@ public class xiangzi extends Thread {
                 int rgb = image.getRGB(middle, 0);
                 // 从 RGB 中提取绿色通道，范围为 0~255
                 int green = (rgb >>> 8) & 0xFF;
+                // 从 RGB 中提取红色通道，范围为 0~255
+                int red = (rgb >>> 16) & 0xFF;
                 // 绿色值大于等于 100，认为当前像素是绿色
-                if (green >= 100) {
-                    // 当前是绿色，第一个黑色像素一定在右侧
+                if ((green >= 100) || (red >= 100)) {
+                    // 当前是绿色或者红色，第一个黑色像素一定在右侧
                     left = middle + 1;
                     y = 463;
                 } else {
@@ -308,7 +312,7 @@ public class xiangzi extends Thread {
         Color stomachlColor = getPixelColor(783, 38);
         int blue = stomachlColor.getBlue();
 
-        if (blue > 90) {
+        if (blue > 60) {
             System.out.println(LocalDateTime.now() + "能量充足");
             //是蓝色，那就不需要吃东西
             return false;
@@ -579,6 +583,8 @@ public class xiangzi extends Thread {
 
         if (stomach && intestine) {
             if (trainingEfficiency.equals("效率优先") ? true : nengliang) {
+                System.out.println(stomach + "" + intestine + nengliang + trainingEfficiency + LocalDateTime.now());
+
                 robot.keyPress(KeyEvent.VK_0);
                 safeDelay(50);
                 robot.keyRelease(KeyEvent.VK_0);
