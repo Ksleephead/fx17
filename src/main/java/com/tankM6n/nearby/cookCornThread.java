@@ -201,51 +201,55 @@ public final class cookCornThread extends Thread {
         AtomicInteger attemptCount = new AtomicInteger(0);   // 当前递归/检测次数
         AtomicBoolean conditionMet = new AtomicBoolean(false); // true=条件满足, false=超时
 
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-        // ===== 递归任务 =====
-        Runnable checkTask = new Runnable() {
-            @Override
-            public void run() {
-                int currentAttempt = attemptCount.incrementAndGet();
+        // 使用固定延迟任务，不在任务内部递归 schedule，避免停止线程池时再次提交任务。
+        Runnable checkTask = () -> {
+            if (Thread.currentThread().isInterrupted()) {
+                return;
+            }
 
-                // ① 检查是否超过最大深度
-                if (currentAttempt > maxDepth) {
-                    System.out.println("已达到最大检测次数（" + maxDepth + "），停止检测");
-                    conditionMet.set(false);  // 标记为"未满足条件，超时退出"
-                    latch.countDown();        // 唤醒外面线程
-                    return;                   // 不再调度，任务结束
+            int currentAttempt = attemptCount.incrementAndGet();
+            if (currentAttempt > maxDepth) {
+                System.out.println("已达到最大检测次数（" + maxDepth + "），停止检测");
+                conditionMet.set(false);
+                latch.countDown();
+                return;
+            }
+
+            try {
+                Color color = getPixelColor(
+                        panPositions.get(0).screenX() + 17,
+                        panPositions.get(0).screenY() + 110);
+                if (Thread.currentThread().isInterrupted()) {
+                    return;
                 }
-                try {
-                    // ② 检测逻辑
-                    Color color = getPixelColor(panPositions.get(0).screenX() + 17 , panPositions.get(0).screenY() + 110);
-                    if (color.getBlue() < 50) {
-                        System.out.println("✅ 条件满足！blue=" + color.getBlue());
-                        conditionMet.set(true);   // 标记条件满足
-                        latch.countDown();        // 唤醒外面线程
-                        return;                   // 不再调度，任务结束
-                    }
-                    // ③ 条件未满足，继续递归调度（1 秒后执行下一次）
-                    scheduler.schedule(this, checkInterval, TimeUnit.SECONDS);
-
-                } catch (Exception e) {
+                if (color.getBlue() < 50) {
+                    System.out.println("✅ 条件满足！blue=" + color.getBlue());
+                    conditionMet.set(true);
+                    latch.countDown();
+                }
+            } catch (RuntimeException e) {
+                // ↓ 引起的 shutdownNow() 是正常停止，不应作为任务错误打印。
+                if (!Thread.currentThread().isInterrupted() && !scheduler.isShutdown()) {
                     System.err.println("❌ 检测异常：" + e.getMessage());
                     e.printStackTrace();
-                    // 异常后也继续调度（你也可以选择直接停止）
-                    scheduler.schedule(this, checkInterval, TimeUnit.SECONDS);
                 }
             }
         };
 
         // ===== 启动第一次检测 =====
         System.out.println("🚀 启动检测任务...");
-        scheduler.schedule(checkTask, 5, TimeUnit.SECONDS);
+        scheduler.scheduleWithFixedDelay(
+                checkTask, 5, checkInterval, TimeUnit.SECONDS);
 
         // ===== 外面线程阻塞等待（相当于 wait）=====
-        latch.await();  // 阻塞，直到条件满足 或 超过最大深度
-
-        // ===== 被唤醒后，关闭线程池 =====
-        scheduler.shutdown();
+        try {
+            latch.await();  // 阻塞，直到条件满足、超过最大次数或线程被停止
+        } finally {
+            // ↓ 中断 latch.await() 时也必须关闭池，防止定时任务泄漏并继续操作 Robot。
+            scheduler.shutdownNow();
+        }
 
         // ===== 根据结果做后续处理 =====
         if (conditionMet.get()) {

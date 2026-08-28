@@ -472,11 +472,13 @@ public class xiangzi extends Thread {
             CountDownLatch latch = new CountDownLatch(1);
 
             // 2. 创建定时线程池
-            ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+            ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
             // 3. 提交定时任务
             scheduler.scheduleAtFixedRate(() -> {
                 try {
+                    // ↓ 停止训练后不允许定时任务继续执行 Robot 操作。
+                    ensureRunning();
                     //打开tab
                     tabSwitch();
                     robot.keyPress(KeyEvent.VK_4);
@@ -533,16 +535,29 @@ public class xiangzi extends Thread {
                         return;
                     }
                     System.out.println("⏳ 条件未满足，继续检测...");
+                } catch (InterruptedException e) {
+                    // shutdownNow() 中断正在执行的检测属于正常停止流程，不打印错误堆栈。
+                    Thread.currentThread().interrupt();
+                    latch.countDown();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    if (running) {
+                        System.err.println("休息状态定时检测失败: " + e.getMessage());
+                        e.printStackTrace();
+                    } else {
+                        latch.countDown();
+                    }
                 }
             }, 1, 20, TimeUnit.SECONDS);
 
             System.out.println("阻塞等待中...");
-            latch.await(); // 阻塞，直到 latch.countDown() 被调用
+            try {
+                latch.await(); // 阻塞，直到条件满足或训练被停止
+            } finally {
+                // latch.await() 被 ↓ 中断时也必须关闭定时任务，防止后台继续操作 Robot。
+                scheduler.shutdownNow();
+            }
 
-            System.out.println("被唤醒，关闭线程池...");
-            scheduler.shutdown();
+            System.out.println("被唤醒，定时检测已关闭");
         }
     }
 

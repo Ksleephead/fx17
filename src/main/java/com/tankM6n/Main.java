@@ -88,9 +88,12 @@ public class Main extends Application {
     private ComboBox<Integer> cornCookCountComboBox;
     private volatile int cornCookCount = 1;
 
-    private ScheduledExecutorService restartScheduler;
+    private volatile ScheduledExecutorService restartScheduler;
     // Codex生成：保存唯一的重启检查任务，避免重连后重复创建定时任务。
-    private ScheduledFuture<?> restartCheckTask;
+    private volatile ScheduledFuture<?> restartCheckTask;
+    private volatile ScheduledFuture<?> restartResumeTask;
+    private volatile boolean restartSchedulingEnabled;
+    private volatile long restartSchedulerGeneration;
     private int restartDelayMinutes = 2; // 重连后给电脑进入服务器的时间
     // 主舞台引用
     private Stage mainStage;
@@ -344,7 +347,7 @@ public class Main extends Application {
         stopButton.setLayoutX(340);
         stopButton.setLayoutY(425);
         stopButton.setPrefWidth(150);
-        stopButton.setOnAction(event -> stopTraining());
+        stopButton.setOnAction(event -> stopTrainingManually());
 
         Label trainingDurationLabel = new Label("已炼体时长：");
         trainingDurationLabel.setLayoutX(20);
@@ -564,9 +567,7 @@ public class Main extends Application {
         stopNearbyItemRobotThread();
         unregisterNativeHook();
         saveConfig();
-        if (restartScheduler != null) {
-            restartScheduler.shutdownNow();
-        }
+        shutdownRestartScheduler();
     }
 
     /**
@@ -636,7 +637,6 @@ public class Main extends Application {
             trainingThread.setRunning();
             trainingThread.interrupt();
             trainingThread = null;
-//            restartScheduler.shutdownNow();
         }
 
         if (service != null) {
@@ -652,6 +652,12 @@ public class Main extends Application {
             saveConfig();
             playNotificationSound("/audio/end.mp3");
         }
+    }
+
+    /** 用户主动停止时，同时取消服务器重启检查及尚未执行的自动恢复任务。 */
+    private void stopTrainingManually() {
+        shutdownRestartScheduler();
+        stopTraining();
     }
 
     /**
@@ -784,6 +790,7 @@ public class Main extends Application {
                         System.out.println("停止按钮生效");
                         // 直接从热键线程发出停止信号，不能等待 JavaFX UI 线程处理。
                         stopCook();
+                        shutdownRestartScheduler();
                         Platform.runLater(() -> {
                             stopTraining();
                             stopNearbyItemRobotThread();
@@ -985,6 +992,8 @@ public class Main extends Application {
      * 新增：根据服务器重启时间，自动 stop → wait → start
      */
     private synchronized void scheduleRestartTask() {
+        restartSchedulingEnabled = true;
+        long generation = restartSchedulerGeneration;
         if (restartScheduler == null || restartScheduler.isShutdown()) {
             restartScheduler = Executors.newSingleThreadScheduledExecutor();
         }
@@ -995,45 +1004,102 @@ public class Main extends Application {
         }
 
         restartCheckTask = restartScheduler.scheduleAtFixedRate(() -> {
-            LocalTime now = LocalTime.now();
-            // Codex生成：每次检查都读取最新下拉框值，修改后无需重建定时任务。
-            Integer targetHour = parseRestartHour(serverRestartTime);
+            try {
+                if (!isRestartScheduleActive(generation)) {
+                    return;
+                }
+                LocalTime now = LocalTime.now();
+                // Codex生成：每次检查都读取最新下拉框值，修改后无需重建定时任务。
+                Integer targetHour = parseRestartHour(serverRestartTime);
 
-            if (targetHour != null && now.getHour() == targetHour && now.getMinute() == 2) {//假设是4点02分已经断开连接了.并且服务器已经重启完了
-                Platform.runLater(() -> {
-                    stopTraining();
-                    Robot robot = null;
-                    try {
-                        robot = new Robot();
-                        robot.mouseMove(513 , 403);
-                        robot.delay(300);
-                        //这里是点击确定框
-                        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-                        robot.delay(50);
-                        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-
-                        robot.delay(3000);
-                        //这里等一会服务器重启，点击继续游戏
-                        robot.mouseMove(119 , 396);
-                        robot.delay(300);
-                        //这里是点击确定框
-                        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-                        robot.delay(50);
-                        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-                        //然后就等加载，等后续开始执行startTraining
-                    } catch (AWTException e) {
-                        throw new RuntimeException(e);
-                    }
-                    restartScheduler.schedule(
-                            () -> Platform.runLater(() -> startTraining("restart")),
-                            restartDelayMinutes,
-                            TimeUnit.MINUTES
-                    );
-                    // Codex生成：本次重启处理完成后，推进并保存下一次服务器重启时间。
-                    advanceServerRestartTime();
-                });
+                if (targetHour != null && now.getHour() == targetHour && now.getMinute() == 2) {//假设是4点02分已经断开连接了.并且服务器已经重启完了
+                    Platform.runLater(() -> handleScheduledRestart(generation));
+                }
+            } catch (RuntimeException e) {
+                // 防止一次检查异常导致 scheduleAtFixedRate 永久停止。
+                if (isRestartScheduleActive(generation)) {
+                    System.err.println("服务器重启定时检查失败: " + e.getMessage());
+                    e.printStackTrace();
+                }
             }
         }, 0, 1, TimeUnit.MINUTES);
+    }
+
+    private void handleScheduledRestart(long generation) {
+        // ↓ 可能在定时任务排队后、JavaFX 执行前发生，必须再次确认任务仍有效。
+        if (!isRestartScheduleActive(generation)) {
+            return;
+        }
+
+        stopTraining();
+        try {
+            Robot robot = new Robot();
+            robot.mouseMove(513, 403);
+            robot.delay(300);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            robot.delay(50);
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+
+            robot.delay(3000);
+            robot.mouseMove(119, 396);
+            robot.delay(300);
+            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            robot.delay(50);
+            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+        } catch (AWTException e) {
+            System.err.println("服务器重启 Robot 创建失败: " + e.getMessage());
+            return;
+        }
+
+        ScheduledExecutorService scheduler = restartScheduler;
+        if (isRestartScheduleActive(generation) && scheduler != null && !scheduler.isShutdown()) {
+            try {
+                restartResumeTask = scheduler.schedule(
+                        () -> {
+                            if (isRestartScheduleActive(generation)) {
+                                Platform.runLater(() -> {
+                                    if (isRestartScheduleActive(generation)) {
+                                        startTraining("restart");
+                                    }
+                                });
+                            }
+                        },
+                        restartDelayMinutes,
+                        TimeUnit.MINUTES);
+            } catch (RejectedExecutionException e) {
+                // ↓ 或窗口关闭恰好发生在提交期间属于正常取消，不打印错误。
+                if (isRestartScheduleActive(generation)) {
+                    System.err.println("提交服务器重启恢复任务失败: " + e.getMessage());
+                }
+                return;
+            }
+        } else {
+            return;
+        }
+
+        // Codex生成：本次重启处理完成后，推进并保存下一次服务器重启时间。
+        advanceServerRestartTime();
+    }
+
+    private boolean isRestartScheduleActive(long generation) {
+        return restartSchedulingEnabled && restartSchedulerGeneration == generation;
+    }
+
+    private synchronized void shutdownRestartScheduler() {
+        restartSchedulingEnabled = false;
+        restartSchedulerGeneration++;
+        if (restartCheckTask != null) {
+            restartCheckTask.cancel(true);
+            restartCheckTask = null;
+        }
+        if (restartResumeTask != null) {
+            restartResumeTask.cancel(true);
+            restartResumeTask = null;
+        }
+        if (restartScheduler != null) {
+            restartScheduler.shutdownNow();
+            restartScheduler = null;
+        }
     }
 
     /**
