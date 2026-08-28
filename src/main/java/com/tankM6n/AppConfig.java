@@ -4,10 +4,7 @@
 package com.tankM6n;
 
 public class AppConfig {
-    private String restAfterHits = "";
-    private String repairGlovesAfter = "";
     private String drinkWaterAfter = "";
-    private String timePerHit = "";
     private String recoveryTime = "";
     private boolean dropInsteadDestroy;
     private String restType = "趴下";
@@ -20,36 +17,12 @@ public class AppConfig {
     // Codex生成：服务器每次重启完成后，用该间隔计算下一次重启时间。
     private String serverRestartInterval = "0";
 
-    public String getRestAfterHits() {
-        return restAfterHits;
-    }
-
-    public void setRestAfterHits(String restAfterHits) {
-        this.restAfterHits = restAfterHits;
-    }
-
-    public String getRepairGlovesAfter() {
-        return repairGlovesAfter;
-    }
-
-    public void setRepairGlovesAfter(String repairGlovesAfter) {
-        this.repairGlovesAfter = repairGlovesAfter;
-    }
-
     public String getDrinkWaterAfter() {
         return drinkWaterAfter;
     }
 
     public void setDrinkWaterAfter(String drinkWaterAfter) {
         this.drinkWaterAfter = drinkWaterAfter;
-    }
-
-    public String getTimePerHit() {
-        return timePerHit;
-    }
-
-    public void setTimePerHit(String timePerHit) {
-        this.timePerHit = timePerHit;
     }
 
     public String getRecoveryTime() {

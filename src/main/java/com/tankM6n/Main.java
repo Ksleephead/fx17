@@ -44,11 +44,7 @@ import java.util.Map;
 import java.util.concurrent.*;
 
 public class Main extends Application {
-    // 五个独立的成员变量
-    private String restAfterHits;      // 砸箱子多少下后休息
-    private String repairGlovesAfter;  // 体力耗尽后多少下后修手套
     private String drinkWaterAfter;    // 体力耗尽后多少下后喝水
-    private String timePerHit;         // 砸一次箱子时间（单位：秒）
     private String recoveryTime;       // 体力恢复时间（单位：秒）
     private boolean dropInsteadDestroy; // 是否丢下而不是摧毁（新增复选框状态）
     private String restType;           // 休息类型（新增下拉框值）
@@ -185,24 +181,21 @@ public class Main extends Application {
 
         root.getChildren().addAll(tip1, tip2 , tip3 , tip4 , tip5 , tip6 , tip7, tip8);
 
-        // 创建5个输入框组
-        createInputGroup(root, "砸箱子多少下后休息：", "", 20, 145, "restAfterHits");
-        createInputGroup(root, "体力耗尽后多少下后修手套：", "", 20, 195, "repairGlovesAfter");
+        // 当前只保留仍参与训练逻辑的恢复时间输入框。
 //        createInputGroup(root, "体力耗尽后多少下后喝水：", "", 20, 170, "drinkWaterAfter");
-        createInputGroup(root, "砸一次箱子时间（单位：秒）：", "", 20, 245, "timePerHit");
-        createInputGroup(root, "体力恢复时间（单位：秒）：", "", 20, 295, "recoveryTime");
+        createInputGroup(root, "体力恢复时间（单位：秒）：", "", 20, 145, "recoveryTime");
 
         // 添加休息类型下拉框
         Label restTypeLabel = new Label("休息类型：");
         restTypeLabel.setLayoutX(20);
-        restTypeLabel.setLayoutY(325);
+        restTypeLabel.setLayoutY(180);
 
         // 创建下拉框并添加选项
         restTypeComboBox = new ComboBox<>();
         ObservableList<String> restOptions = FXCollections.observableArrayList("坐下", "趴下");
         restTypeComboBox.setItems(restOptions);
         restTypeComboBox.setLayoutX(120);
-        restTypeComboBox.setLayoutY(325);
+        restTypeComboBox.setLayoutY(180);
         restTypeComboBox.setPrefWidth(120);
         restTypeComboBox.setValue("趴下"); // 设置默认值
 
@@ -214,7 +207,7 @@ public class Main extends Application {
         // 添加复选框（如果点击的是丢下而不是摧毁，把这个勾打上）
         dropCheckBox = new CheckBox("如果点击的是丢下而不是摧毁，把这个勾打上【失效】");
         dropCheckBox.setLayoutX(20);
-        dropCheckBox.setLayoutY(355);
+        dropCheckBox.setLayoutY(215);
         dropCheckBox.setSelected(dropInsteadDestroy);
         dropCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
             dropInsteadDestroy = newValue;
@@ -223,7 +216,7 @@ public class Main extends Application {
         // 添加咖啡因复选框
         caffeineCheckBox = new CheckBox("是否启用自动吃咖啡粉");
         caffeineCheckBox.setLayoutX(20);
-        caffeineCheckBox.setLayoutY(385);
+        caffeineCheckBox.setLayoutY(250);
         caffeineCheckBox.setSelected(enableAutoCaffeine);
         caffeineCheckBox.setDisable(true); // 初始状态下禁用
         caffeineCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
@@ -252,7 +245,7 @@ public class Main extends Application {
         // 添加自动吃饭复选框 - 在咖啡因控件后添加
         autoEatCheckBox = new CheckBox("是否启用自动吃饭");
         autoEatCheckBox.setLayoutX(220);
-        autoEatCheckBox.setLayoutY(385);  // 紧接在咖啡因控件下方
+        autoEatCheckBox.setLayoutY(250);
         autoEatCheckBox.setSelected(enableAutoEat);
         autoEatCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
             enableAutoEat = newValue;
@@ -261,7 +254,7 @@ public class Main extends Application {
         // ===================== 服务器重启时间 =====================
         Label serverRestartLabel = new Label("下一次服务器重启时间【24小时制】：");
         serverRestartLabel.setLayoutX(20);
-        serverRestartLabel.setLayoutY(415);
+        serverRestartLabel.setLayoutY(285);
 
         serverRestartComboBox = new ComboBox<>();
         ObservableList<String> hours = FXCollections.observableArrayList();
@@ -271,14 +264,14 @@ public class Main extends Application {
         }
         serverRestartComboBox.setItems(hours);
         serverRestartComboBox.setLayoutX(220);
-        serverRestartComboBox.setLayoutY(415);
+        serverRestartComboBox.setLayoutY(285);
         serverRestartComboBox.setPrefWidth(120);
         serverRestartComboBox.setValue(serverRestartTime);
         serverRestartComboBox.valueProperty().addListener((obs, o, n) -> serverRestartTime = n);
 
         Label serverRestartIntervalLabel = new Label("服务器重启间隔【小时】：");
         serverRestartIntervalLabel.setLayoutX(20);
-        serverRestartIntervalLabel.setLayoutY(445);
+        serverRestartIntervalLabel.setLayoutY(315);
 
         serverRestartIntervalComboBox = new ComboBox<>();
         ObservableList<String> intervals = FXCollections.observableArrayList();
@@ -288,7 +281,7 @@ public class Main extends Application {
         }
         serverRestartIntervalComboBox.setItems(intervals);
         serverRestartIntervalComboBox.setLayoutX(220);
-        serverRestartIntervalComboBox.setLayoutY(445);
+        serverRestartIntervalComboBox.setLayoutY(315);
         serverRestartIntervalComboBox.setPrefWidth(120);
         serverRestartIntervalComboBox.setValue(serverRestartInterval);
         serverRestartIntervalComboBox.valueProperty().addListener((obs, o, n) -> serverRestartInterval = n);
@@ -296,13 +289,13 @@ public class Main extends Application {
         // ===================== 炼体效率选择 =====================
         Label trainingEfficiencyLabel = new Label("选择炼体效率：");
         trainingEfficiencyLabel.setLayoutX(20);
-        trainingEfficiencyLabel.setLayoutY(475);
+        trainingEfficiencyLabel.setLayoutY(345);
 
         trainingEfficiencyComboBox = new ComboBox<>();
         trainingEfficiencyComboBox.setItems(FXCollections.observableArrayList(
                 "效率优先", "敏捷优先"));
         trainingEfficiencyComboBox.setLayoutX(220);
-        trainingEfficiencyComboBox.setLayoutY(475);
+        trainingEfficiencyComboBox.setLayoutY(345);
         trainingEfficiencyComboBox.setPrefWidth(120);
         trainingEfficiencyComboBox.setValue("效率优先");
         trainingEfficiencyComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
@@ -314,7 +307,7 @@ public class Main extends Application {
         // ===================== 制作烤玉米数量 =====================
         Label cornCookCountLabel = new Label("制作烤玉米个数：");
         cornCookCountLabel.setLayoutX(20);
-        cornCookCountLabel.setLayoutY(510);
+        cornCookCountLabel.setLayoutY(380);
 
         cornCookCountComboBox = new ComboBox<>();
         ObservableList<Integer> cornCookCountOptions = FXCollections.observableArrayList();
@@ -323,7 +316,7 @@ public class Main extends Application {
         }
         cornCookCountComboBox.setItems(cornCookCountOptions);
         cornCookCountComboBox.setLayoutX(220);
-        cornCookCountComboBox.setLayoutY(510);
+        cornCookCountComboBox.setLayoutY(380);
         cornCookCountComboBox.setPrefWidth(120);
         cornCookCountComboBox.setValue(1);
         cornCookCountComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
@@ -335,32 +328,32 @@ public class Main extends Application {
         // 添加编辑/保存按钮
         editSaveButton = new Button("编辑");
         editSaveButton.setLayoutX(20);
-        editSaveButton.setLayoutY(545);
+        editSaveButton.setLayoutY(425);
         editSaveButton.setPrefWidth(150);
         editSaveButton.setOnAction(event -> toggleEditMode());
 
         // 添加开始训练按钮
         Button startButton = new Button("开始训练");
         startButton.setLayoutX(180);
-        startButton.setLayoutY(545);
+        startButton.setLayoutY(425);
         startButton.setPrefWidth(150);
         startButton.setOnAction(event -> startTraining("default"));
 
         // 添加停止训练按钮
         Button stopButton = new Button("停止训练");
         stopButton.setLayoutX(340);
-        stopButton.setLayoutY(545);
+        stopButton.setLayoutY(425);
         stopButton.setPrefWidth(150);
         stopButton.setOnAction(event -> stopTraining());
 
         Label trainingDurationLabel = new Label("已炼体时长：");
         trainingDurationLabel.setLayoutX(20);
-        trainingDurationLabel.setLayoutY(355);
+        trainingDurationLabel.setLayoutY(215);
 //        trainingDurationLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
 
         trainingDurationField = new TextField();
         trainingDurationField.setLayoutX(105);
-        trainingDurationField.setLayoutY(355);
+        trainingDurationField.setLayoutY(215);
         trainingDurationField.setPrefWidth(225);
         trainingDurationField.setEditable(false);
         trainingDurationField.setFocusTraversable(false);
@@ -378,7 +371,7 @@ public class Main extends Application {
                 trainingDurationLabel, trainingDurationField);
 
         // 设置场景和舞台
-        Scene scene = new Scene(root, 500, 615); // 增加高度以容纳炼体效率下拉框
+        Scene scene = new Scene(root, 500, 480);
         primaryStage.setTitle("SCUM创可贴免费炼体器(作者：GorphynMars)");
         primaryStage.setScene(scene);
 
@@ -440,17 +433,8 @@ public class Main extends Application {
         // 为输入框添加事件处理
         inputField.textProperty().addListener((observable, oldValue, newValue) -> {
             switch (fieldName) {
-                case "restAfterHits":
-                    restAfterHits = newValue;
-                    break;
-                case "repairGlovesAfter":
-                    repairGlovesAfter = newValue;
-                    break;
                 case "drinkWaterAfter":
                     drinkWaterAfter = newValue;
-                    break;
-                case "timePerHit":
-                    timePerHit = newValue;
                     break;
                 case "recoveryTime":
                     recoveryTime = newValue;
@@ -489,10 +473,7 @@ public class Main extends Application {
      */
     private void loadConfig() {
         AppConfig config = configService.load();
-        restAfterHits = config.getRestAfterHits();
-        repairGlovesAfter = config.getRepairGlovesAfter();
         drinkWaterAfter = config.getDrinkWaterAfter();
-        timePerHit = config.getTimePerHit();
         recoveryTime = config.getRecoveryTime();
         dropInsteadDestroy = config.isDropInsteadDestroy();
         restType = config.getRestType();
@@ -514,10 +495,7 @@ public class Main extends Application {
      */
     private void saveConfig() {
         AppConfig config = new AppConfig();
-        config.setRestAfterHits(restAfterHits);
-        config.setRepairGlovesAfter(repairGlovesAfter);
         config.setDrinkWaterAfter(drinkWaterAfter);
-        config.setTimePerHit(timePerHit);
         config.setRecoveryTime(recoveryTime);
         config.setDropInsteadDestroy(dropInsteadDestroy);
         config.setRestType(restType);
@@ -538,10 +516,7 @@ public class Main extends Application {
      */
     private void updateUIFromConfig() {
         // 使用存储的输入框引用来设置值
-        inputFields.get("restAfterHits").setText(restAfterHits != null ? restAfterHits : "");
-        inputFields.get("repairGlovesAfter").setText(repairGlovesAfter != null ? repairGlovesAfter : "");
 //        inputFields.get("drinkWaterAfter").setText(drinkWaterAfter != null ? drinkWaterAfter : "");
-        inputFields.get("timePerHit").setText(timePerHit != null ? timePerHit : "");
         inputFields.get("recoveryTime").setText(recoveryTime != null ? recoveryTime : "");
 
         // 更新复选框状态
@@ -610,10 +585,7 @@ public class Main extends Application {
 
         try {
             // 将字符串参数转换为double类型
-            double restAfterHitsValue = Double.parseDouble(restAfterHits);
-            double repairGlovesAfterValue = Double.parseDouble(repairGlovesAfter);
             double drinkWaterAfterValue = Double.parseDouble(drinkWaterAfter);
-            double timePerHitValue = Double.parseDouble(timePerHit);
             double recoveryTimeValue = Double.parseDouble(recoveryTime);
 
             // 新增：处理咖啡因参数
@@ -632,10 +604,6 @@ public class Main extends Application {
             }
             // 创建新的训练线程并传入参数（包括复选框状态和休息类型）
             trainingThread = new xiangzi(
-                    restAfterHitsValue,
-                    repairGlovesAfterValue,
-                    drinkWaterAfterValue,
-                    timePerHitValue,
                     recoveryTimeValue,
                     dropInsteadDestroy,  // 传递复选框状态作为mousePositionChange参数
                     restType,            // 传递休息类型参数

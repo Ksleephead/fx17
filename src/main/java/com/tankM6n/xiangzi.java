@@ -3,31 +3,18 @@
 
 package com.tankM6n;
 
-import com.tankM6n.nearby.ImageProcessor;
-import com.tankM6n.nearby.TemplateMatcher;
-
-import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.concurrent.*;
 
 
 public class xiangzi extends Thread {
-    private static final double TILIZHI_SIMILARITY_THRESHOLD = 1;
 
-    // 添加6个double类型的成员变量
-
-    private double restAfterHits;      // 砸箱子多少下后休息  3
-    private double repairGlovesAfter;  // 体力耗尽后多少下后修手套 4
-    private double drinkWaterAfter;    // 体力耗尽后多少下后喝水 8
-    private double timePerHit;         // 砸一次箱子时间（单位：秒）35
     private double recoveryTime;       // 体力恢复时间（单位：秒） 65
     private boolean dropInsteadDestroy = false; // 是否丢下而不是摧毁（新增复选框状态）
     private String insideGameOrNot = "default";
@@ -52,11 +39,7 @@ public class xiangzi extends Thread {
 
     // 添加构造方法接收6个double参数
 
-    public xiangzi(double restAfterHits, double repairGlovesAfter, double drinkWaterAfter, double timePerHit, double recoveryTime, boolean dropInsteadDestroy, String restType, boolean enableAutoCaffeine, double caffeineMgValue, boolean enableAutoEat, String insideGameOrNot, String trainingEfficiency, ExecutorService executor) {
-        this.restAfterHits = restAfterHits;
-        this.repairGlovesAfter = repairGlovesAfter;
-        this.drinkWaterAfter = drinkWaterAfter;
-        this.timePerHit = timePerHit;
+    public xiangzi(double recoveryTime, boolean dropInsteadDestroy, String restType, boolean enableAutoCaffeine, double caffeineMgValue, boolean enableAutoEat, String insideGameOrNot, String trainingEfficiency, ExecutorService executor) {
         this.recoveryTime = recoveryTime;
         this.dropInsteadDestroy = dropInsteadDestroy;
         this.restType = restType;
@@ -100,6 +83,24 @@ public class xiangzi extends Thread {
             Thread.sleep(Math.min(100, end - System.currentTimeMillis()));
         }
         ensureRunning();
+    }
+
+    /** 比较两张截图的尺寸和每一个 RGB 像素是否完全相同。 */
+    private boolean imagesAreEqual(BufferedImage first, BufferedImage second) {
+        if (first == null || second == null
+                || first.getWidth() != second.getWidth()
+                || first.getHeight() != second.getHeight()) {
+            return false;
+        }
+
+        for (int y = 0; y < first.getHeight(); y++) {
+            for (int x = 0; x < first.getWidth(); x++) {
+                if (first.getRGB(x, y) != second.getRGB(x, y)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private void releaseKeys() {
@@ -427,13 +428,12 @@ public class xiangzi extends Thread {
             standUp(i, robot);
             //吃东西
             eat(i);
-            breakTime(robot, i);
             ensureRunning();
             tabSwitch();
             safeDelay(500);
             //修鞋子
             repairShoes(i);
-            for (int j = 0; j < restAfterHits && running; j++) {
+            for (int j = 0; j < 4 && running; j++) {
                 //开始摧毁箱子
                 coffeeCheckDomin rst = desitroy(robot, lastEdge , j);
                 lastEdge = rst.getLastEdge();
@@ -747,14 +747,6 @@ public class xiangzi extends Thread {
         }
     }
 
-    private void breakTime(Robot robot, int j) throws InterruptedException {
-        for (int i = 0; i < 2; i++) {
-            if ((j % repairGlovesAfter) == 0 && j != 0) {
-                fixGloves(robot);
-            }
-        }
-    }
-
     private void fixGloves(Robot robot) throws InterruptedException {
         //修手套
         ensureRunning();
@@ -817,9 +809,23 @@ public class xiangzi extends Thread {
         Future<Boolean> coffeeContains = coffeeStatus();
         //第一次砸
         if (j != 3){
-            safeDelay((int) (timePerHit * 1000) - 3000);
+            safeDelay(27 * 1000);
         }else{
+            // 检测区域：(128,317) 到右下边界 (158,324)，尺寸为 15×7。
+            Rectangle monitoredArea = new Rectangle(128, 317, 30, 7);
+            BufferedImage previousImage = robot.createScreenCapture(monitoredArea);
+            for (int i = 0; i < 30; i++) {
+                safeDelay(1000);
+                // 每秒检测一次；safeDelay 可以在按下停止热键后及时结束线程。
+                BufferedImage currentImage = robot.createScreenCapture(monitoredArea);
+                if (imagesAreEqual(previousImage, currentImage)) {
+                    System.out.println("检测区域已稳定，继续运行");
+                    break;
+                }
 
+                System.out.println("检测区域仍在变化，继续等待");
+                previousImage = currentImage;
+            }
         }
 
         robot.mouseMove(1024 / 2 , 768 / 2);

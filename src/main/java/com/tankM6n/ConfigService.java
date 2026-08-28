@@ -21,10 +21,7 @@ public class ConfigService {
             return config;
         }
 
-        config.setRestAfterHits(prop.getProperty("restAfterHits", ""));
-        config.setRepairGlovesAfter(prop.getProperty("repairGlovesAfter", ""));
         config.setDrinkWaterAfter(prop.getProperty("drinkWaterAfter", ""));
-        config.setTimePerHit(prop.getProperty("timePerHit", ""));
         config.setRecoveryTime(prop.getProperty("recoveryTime", ""));
         config.setDropInsteadDestroy(Boolean.parseBoolean(prop.getProperty("dropInsteadDestroy", "false")));
         config.setRestType(prop.getProperty("restType", "趴下"));
@@ -44,10 +41,7 @@ public class ConfigService {
     public void save(AppConfig config) {
         Properties prop = new Properties();
 
-        prop.setProperty("restAfterHits", valueOrEmpty(config.getRestAfterHits()));
-        prop.setProperty("repairGlovesAfter", valueOrEmpty(config.getRepairGlovesAfter()));
         prop.setProperty("drinkWaterAfter", valueOrEmpty(config.getDrinkWaterAfter()));
-        prop.setProperty("timePerHit", valueOrEmpty(config.getTimePerHit()));
         prop.setProperty("recoveryTime", valueOrEmpty(config.getRecoveryTime()));
         prop.setProperty("dropInsteadDestroy", Boolean.toString(config.isDropInsteadDestroy()));
         prop.setProperty("restType", valueOrDefault(config.getRestType(), "趴下"));
