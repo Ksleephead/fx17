@@ -3,18 +3,25 @@
 
 package com.tankM6n;
 
-import org.springframework.cglib.core.Local;
+import com.tankM6n.nearby.ImageProcessor;
+import com.tankM6n.nearby.TemplateMatcher;
 
+import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.concurrent.*;
 
 
 public class xiangzi extends Thread {
+    private static final double TILIZHI_SIMILARITY_THRESHOLD = 1;
+
     // 添加6个double类型的成员变量
 
     private double restAfterHits;      // 砸箱子多少下后休息  3
@@ -362,7 +369,7 @@ public class xiangzi extends Thread {
         return pixelColor;
     }
 
-    public void zaxiangzi() throws AWTException, ExecutionException, InterruptedException {
+    public void zaxiangzi() throws Exception {
         start = System.currentTimeMillis();
 
         if ("default".equals(insideGameOrNot)){
@@ -411,88 +418,11 @@ public class xiangzi extends Thread {
             if (!running) {
                 break;
             }
-            if (needRest){
-                standUp(1, robot);
-                // 1. 创建一个计数器为 1 的闩锁
-                CountDownLatch latch = new CountDownLatch(1);
-
-                // 2. 创建定时线程池
-                ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-
-                // 3. 提交定时任务
-                scheduler.scheduleAtFixedRate(() -> {
-                    try {
-                        //打开tab
-                        tabSwitch();
-                        robot.keyPress(KeyEvent.VK_4);
-                        safeDelay(50);
-                        robot.keyRelease(KeyEvent.VK_4);
-                        safeDelay(500);
-                        boolean intestine = checkcIntestine();
-                        boolean stomach = checkStomach();
-                        boolean nengliang = true;
-                        boolean danBaizhi = true;
-
-                        Color nengliangColor = getPixelColor(751, 30);//差不多是能量的90%
-                        int blue = nengliangColor.getBlue();
-
-                        if (blue > 90) {
-                            System.out.println(LocalDateTime.now() + "能量充足");
-                            //是蓝色，那就不需要吃东西
-                            nengliang = false;
-                        }
-
-                        Color danbaizhiColor = getPixelColor(700, 150);//蛋白质
-                        int blue2 = danbaizhiColor.getBlue();
-
-                        if (blue2 > 90) {
-                            System.out.println(LocalDateTime.now() + "蛋白质充足");
-                            //是蓝色，那就不需要吃东西
-                            danBaizhi = false;
-                        }
-
-                        //关闭tab
-                        tabSwitch();
-                        safeDelay(1000);
-
-                        System.out.println("nengliang/" + nengliang + "/danBaizhi/" + danBaizhi + "/stomach/" + stomach + "/intestine/" + intestine + LocalDateTime.now());
-                        if (nengliang || danBaizhi) {
-                            if (stomach && intestine) {
-                                robot.keyPress(KeyEvent.VK_0);
-                                safeDelay(50);
-                                robot.keyRelease(KeyEvent.VK_0);
-                                safeDelay(3 * 1000);
-                                robot.keyPress(KeyEvent.VK_4);
-                                safeDelay(50);
-                                robot.keyRelease(KeyEvent.VK_4);
-                                safeDelay(3 * 1000);
-                                robot.keyPress(KeyEvent.VK_9);
-                                safeDelay(50);
-                                robot.keyRelease(KeyEvent.VK_9);
-                                safeDelay(3 * 1000);
-                            }
-                        }else {
-                            needRest = false;
-                            System.out.println("✅ 条件满足！准备唤醒外面线程...");
-                            latch.countDown(); // 计数器减为 0，唤醒外面等待的线程
-                            return;
-                        }
-                        System.out.println("⏳ 条件未满足，继续检测...");
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }, 1, 20, TimeUnit.SECONDS);
-
-                System.out.println("阻塞等待中...");
-                latch.await(); // 阻塞，直到 latch.countDown() 被调用
-
-                System.out.println("被唤醒，关闭线程池...");
-                scheduler.shutdown();
-            }
+            needRestLogic();
             //开局修手套
             if (i == 0){
-//                fixGloves(robot);
-//                fixGloves(robot);
+                fixGloves(robot);
+                fixGloves(robot);
             }
             standUp(i, robot);
             //吃东西
@@ -532,6 +462,87 @@ public class xiangzi extends Thread {
                 recoveryTab(robot);
             }
 
+        }
+    }
+
+    private void needRestLogic() throws InterruptedException {
+        if (needRest){
+            standUp(1, robot);
+            // 1. 创建一个计数器为 1 的闩锁
+            CountDownLatch latch = new CountDownLatch(1);
+
+            // 2. 创建定时线程池
+            ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
+            // 3. 提交定时任务
+            scheduler.scheduleAtFixedRate(() -> {
+                try {
+                    //打开tab
+                    tabSwitch();
+                    robot.keyPress(KeyEvent.VK_4);
+                    safeDelay(50);
+                    robot.keyRelease(KeyEvent.VK_4);
+                    safeDelay(500);
+                    boolean intestine = checkcIntestine();
+                    boolean stomach = checkStomach();
+                    boolean nengliang = true;
+                    boolean danBaizhi = true;
+
+                    Color nengliangColor = getPixelColor(751, 30);//差不多是能量的90%
+                    int blue = nengliangColor.getBlue();
+
+                    if (blue > 90) {
+                        System.out.println(LocalDateTime.now() + "能量充足");
+                        //是蓝色，那就不需要吃东西
+                        nengliang = false;
+                    }
+
+                    Color danbaizhiColor = getPixelColor(700, 150);//蛋白质
+                    int blue2 = danbaizhiColor.getBlue();
+
+                    if (blue2 > 90) {
+                        System.out.println(LocalDateTime.now() + "蛋白质充足");
+                        //是蓝色，那就不需要吃东西
+                        danBaizhi = false;
+                    }
+
+                    //关闭tab
+                    tabSwitch();
+                    safeDelay(1000);
+
+                    System.out.println("nengliang/" + nengliang + "/danBaizhi/" + danBaizhi + "/stomach/" + stomach + "/intestine/" + intestine + LocalDateTime.now());
+                    if (nengliang || danBaizhi) {
+                        if (stomach && intestine) {
+                            robot.keyPress(KeyEvent.VK_0);
+                            safeDelay(50);
+                            robot.keyRelease(KeyEvent.VK_0);
+                            safeDelay(3 * 1000);
+                            robot.keyPress(KeyEvent.VK_4);
+                            safeDelay(50);
+                            robot.keyRelease(KeyEvent.VK_4);
+                            safeDelay(3 * 1000);
+                            robot.keyPress(KeyEvent.VK_9);
+                            safeDelay(50);
+                            robot.keyRelease(KeyEvent.VK_9);
+                            safeDelay(3 * 1000);
+                        }
+                    }else {
+                        needRest = false;
+                        System.out.println("✅ 条件满足！准备唤醒外面线程...");
+                        latch.countDown(); // 计数器减为 0，唤醒外面等待的线程
+                        return;
+                    }
+                    System.out.println("⏳ 条件未满足，继续检测...");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }, 1, 20, TimeUnit.SECONDS);
+
+            System.out.println("阻塞等待中...");
+            latch.await(); // 阻塞，直到 latch.countDown() 被调用
+
+            System.out.println("被唤醒，关闭线程池...");
+            scheduler.shutdown();
         }
     }
 
@@ -754,24 +765,26 @@ public class xiangzi extends Thread {
         safeDelay(50);
         robot.keyRelease(KeyEvent.VK_1);
         safeDelay(300);
-        robot.mouseMove(715, 724);
-
-        safeDelay(500);
-        ensureRunning();
-        mousePress(InputEvent.BUTTON3_DOWN_MASK);
-
-        safeDelay(500);
-        robot.mouseMove(730, 721);
-        safeDelay(500);
-        ensureRunning();
-        mousePress(InputEvent.BUTTON1_DOWN_MASK);
-        safeDelay(6 * 1000);
-
-        ensureRunning();
+        Color gloves = getPixelColor(748, 758);
+        if (gloves.getRed() > 200) {
+            robot.mouseMove(715, 724);
+            safeDelay(500);
+            ensureRunning();
+            mousePress(InputEvent.BUTTON3_DOWN_MASK);
+            safeDelay(500);
+            robot.mouseMove(730, 721);
+            safeDelay(500);
+            ensureRunning();
+            mousePress(InputEvent.BUTTON1_DOWN_MASK);
+            safeDelay(6 * 1000);
+            ensureRunning();
+        }else{
+            System.out.println("手套状态良好，不用修" + LocalDateTime.now());
+        }
         tabSwitch();
     }
 
-    private coffeeCheckDomin desitroy(Robot robot , int lastEdge , int j) throws ExecutionException, InterruptedException {
+    private coffeeCheckDomin desitroy(Robot robot , int lastEdge , int j) throws ExecutionException, InterruptedException, IOException, AWTException {
         coffeeCheckDomin coffeeCheckDomin = new coffeeCheckDomin();
         coffeeCheckDomin.setJ(0);
         ensureRunning();
@@ -802,11 +815,15 @@ public class xiangzi extends Thread {
 
         Future<Integer> coffeeEdge = checkCoffeeV2();//开启检测咖啡含量线程
         Future<Boolean> coffeeContains = coffeeStatus();
-        safeDelay((int) (timePerHit * 1000) - 3000);
+        //第一次砸
+        if (j != 3){
+            safeDelay((int) (timePerHit * 1000) - 3000);
+        }else{
 
-        safeDelay(2000);
+        }
+
         robot.mouseMove(1024 / 2 , 768 / 2);
-        safeDelay(1000);
+        safeDelay(500);
         ensureRunning();
         mousePress(InputEvent.BUTTON1_DOWN_MASK);
         safeDelay(300);
