@@ -3,11 +3,10 @@
 
 package com.tankM6n;
 
-import org.springframework.cglib.core.Local;
-
 import java.awt.*;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.time.LocalDateTime;
 import java.util.concurrent.*;
@@ -24,6 +23,7 @@ public class xiangzi extends Thread {
     private boolean dropInsteadDestroy = false; // 是否丢下而不是摧毁（新增复选框状态）
     private String insideGameOrNot = "default";
     private String restType;              // 传递休息类型参数
+    private String trainingEfficiency;    // 炼体策略：效率优先或敏捷优先
     // 新增咖啡因相关成员变量
     private double caffeineMgValue;          // 当前已吸收咖啡因（毫克）
     private boolean enableAutoCaffeine; // 是否启用自动吃咖啡粉
@@ -43,7 +43,7 @@ public class xiangzi extends Thread {
 
     // 添加构造方法接收6个double参数
 
-    public xiangzi(double restAfterHits, double repairGlovesAfter, double drinkWaterAfter, double timePerHit, double recoveryTime, boolean dropInsteadDestroy, String restType, boolean enableAutoCaffeine, double caffeineMgValue, boolean enableAutoEat, String insideGameOrNot, ExecutorService executor) {
+    public xiangzi(double restAfterHits, double repairGlovesAfter, double drinkWaterAfter, double timePerHit, double recoveryTime, boolean dropInsteadDestroy, String restType, boolean enableAutoCaffeine, double caffeineMgValue, boolean enableAutoEat, String insideGameOrNot, String trainingEfficiency, ExecutorService executor) {
         this.restAfterHits = restAfterHits;
         this.repairGlovesAfter = repairGlovesAfter;
         this.drinkWaterAfter = drinkWaterAfter;
@@ -55,6 +55,7 @@ public class xiangzi extends Thread {
         this.enableAutoCaffeine = enableAutoCaffeine;
         this.enableAutoEat = enableAutoEat;
         this.insideGameOrNot = insideGameOrNot;
+        this.trainingEfficiency = trainingEfficiency;
         this.executor = executor;
     }
 
@@ -116,7 +117,7 @@ public class xiangzi extends Thread {
 
     private boolean checkcIntestine() {
 //        Color intestinelColor = getPixelColor(803, 556); //肠道的50%
-        Color intestinelColor = getPixelColor(779, 492); //肠道的80%
+        Color intestinelColor = getPixelColor(779, 493); //肠道的80%
 
         int blue = intestinelColor.getBlue();
         int red = intestinelColor.getRed();
@@ -359,7 +360,7 @@ public class xiangzi extends Thread {
             robot.keyRelease(KeyEvent.VK_W);
             safeDelay(4 * 1000);
         } else if ("inGame".equals(insideGameOrNot)) {
-            safeDelay(2 * 1000);
+            safeDelay(1 * 1000);
         }
 
         //打开聊天框
@@ -395,14 +396,7 @@ public class xiangzi extends Thread {
                 break;
             }
             if (needRest){
-                //休息+启动探针线程
-                recoveryTab(robot);
-                safeDelay(2000);
-                //打开tab
-                tabSwitch();
-                robot.keyPress(KeyEvent.VK_4);
-                safeDelay(50);
-                robot.keyRelease(KeyEvent.VK_4);
+                standUp(1, robot);
                 // 1. 创建一个计数器为 1 的闩锁
                 CountDownLatch latch = new CountDownLatch(1);
 
@@ -412,6 +406,12 @@ public class xiangzi extends Thread {
                 // 3. 提交定时任务
                 scheduler.scheduleAtFixedRate(() -> {
                     try {
+                        //打开tab
+                        tabSwitch();
+                        robot.keyPress(KeyEvent.VK_4);
+                        safeDelay(50);
+                        robot.keyRelease(KeyEvent.VK_4);
+                        safeDelay(500);
                         boolean intestine = checkcIntestine();
                         boolean stomach = checkStomach();
                         boolean nengliang = true;
@@ -430,32 +430,32 @@ public class xiangzi extends Thread {
                         int blue2 = danbaizhiColor.getBlue();
 
                         if (blue2 > 90) {
-                            System.out.println(LocalDateTime.now() + "能量充足");
+                            System.out.println(LocalDateTime.now() + "蛋白质充足");
                             //是蓝色，那就不需要吃东西
-                            nengliang = false;
+                            danBaizhi = false;
                         }
 
+                        //关闭tab
+                        tabSwitch();
+                        safeDelay(1000);
 
+                        System.out.println("nengliang/" + nengliang + "/danBaizhi/" + danBaizhi + "/stomach/" + stomach + "/intestine/" + intestine + LocalDateTime.now());
                         if (nengliang || danBaizhi) {
                             if (stomach && intestine) {
-                                for (int j = 0; j < 4; j++) {
-                                    robot.keyPress(KeyEvent.VK_0);
-                                    safeDelay(50);
-                                    robot.keyRelease(KeyEvent.VK_0);
-                                    safeDelay(4 * 1000);
-                                    robot.keyPress(KeyEvent.VK_4);
-                                    safeDelay(50);
-                                    robot.keyRelease(KeyEvent.VK_4);
-                                    safeDelay(4 * 1000);
-                                    robot.keyPress(KeyEvent.VK_9);
-                                    safeDelay(50);
-                                    robot.keyRelease(KeyEvent.VK_9);
-                                    safeDelay(4 * 1000);
-                                }
+                                robot.keyPress(KeyEvent.VK_0);
+                                safeDelay(50);
+                                robot.keyRelease(KeyEvent.VK_0);
+                                safeDelay(3 * 1000);
+                                robot.keyPress(KeyEvent.VK_4);
+                                safeDelay(50);
+                                robot.keyRelease(KeyEvent.VK_4);
+                                safeDelay(3 * 1000);
+                                robot.keyPress(KeyEvent.VK_9);
+                                safeDelay(50);
+                                robot.keyRelease(KeyEvent.VK_9);
+                                safeDelay(3 * 1000);
                             }
-                        }
-
-                        if (true) {
+                        }else {
                             needRest = false;
                             System.out.println("✅ 条件满足！准备唤醒外面线程...");
                             latch.countDown(); // 计数器减为 0，唤醒外面等待的线程
@@ -465,22 +465,18 @@ public class xiangzi extends Thread {
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                }, 1, 1, TimeUnit.MINUTES);
+                }, 1, 20, TimeUnit.SECONDS);
 
-                // 4. 外面的线程在这里阻塞等待（相当于 wait）
                 System.out.println("阻塞等待中...");
                 latch.await(); // 阻塞，直到 latch.countDown() 被调用
 
-                // 5. 被唤醒后，关闭线程池
                 System.out.println("被唤醒，关闭线程池...");
                 scheduler.shutdown();
-
-
             }
             //开局修手套
             if (i == 0){
-                fixGloves(robot);
-                fixGloves(robot);
+//                fixGloves(robot);
+//                fixGloves(robot);
             }
             standUp(i, robot);
             //吃东西
@@ -582,16 +578,24 @@ public class xiangzi extends Thread {
         //新版本策略，只要胃还能吃得下，就一直吃，直到肠道满了,如果能量和蛋白质还能跟上，就接着炼体，如果能量或蛋白质或水有一项不满足，就休息
 
         if (stomach && intestine) {
-            for (int j = 0; j < 4; j++) {
+            if (trainingEfficiency.equals("效率优先") ? true : nengliang) {
                 robot.keyPress(KeyEvent.VK_0);
                 safeDelay(50);
                 robot.keyRelease(KeyEvent.VK_0);
-                safeDelay(2 * 1000);
+                safeDelay(3 * 1000);
+                robot.keyPress(KeyEvent.VK_4);
+                safeDelay(50);
+                robot.keyRelease(KeyEvent.VK_4);
+                safeDelay(3 * 1000);
+                robot.keyPress(KeyEvent.VK_9);
+                safeDelay(50);
+                robot.keyRelease(KeyEvent.VK_9);
+                safeDelay(3 * 1000);
             }
         }
         //满足任意条件 就强制休息
         if (nengliang || danBaizhi || water){
-            System.err.println("检测到能量或蛋白质或水分不足！，强制休息");
+            System.err.println("检测到能量或蛋白质或水分不足！，强制休息" + LocalDateTime.now());
             needRest = true;
         }
     }
@@ -919,6 +923,7 @@ public class xiangzi extends Thread {
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
         safeDelay(900);
         robot.keyRelease(KeyEvent.VK_TAB);//松开tab
+        releaseKeys();
         safeDelay((long) (recoveryTime * 1000));
     }
 }

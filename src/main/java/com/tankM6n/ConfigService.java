@@ -31,6 +31,7 @@ public class ConfigService {
         config.setCaffeineMg(prop.getProperty("caffeineMg", ""));
         config.setEnableAutoCaffeine(Boolean.parseBoolean(prop.getProperty("enableAutoCaffeine", "false")));
         config.setEnableAutoEat(Boolean.parseBoolean(prop.getProperty("enableAutoEat", "false")));
+        config.setTrainingEfficiency(prop.getProperty("trainingEfficiency", "效率优先"));
         config.setServerRestartTime(prop.getProperty("serverRestartTime", "12"));
         config.setAccumulatedTrainingMillis(parseNonNegativeLong(
                 prop.getProperty("accumulatedTrainingMillis", "0")));
@@ -51,6 +52,8 @@ public class ConfigService {
         prop.setProperty("dropInsteadDestroy", Boolean.toString(config.isDropInsteadDestroy()));
         prop.setProperty("restType", valueOrDefault(config.getRestType(), "趴下"));
         prop.setProperty("enableAutoEat", Boolean.toString(config.isEnableAutoEat()));
+        prop.setProperty("trainingEfficiency",
+                valueOrDefault(config.getTrainingEfficiency(), "效率优先"));
         prop.setProperty("caffeineMg", valueOrEmpty(config.getCaffeineMg()));
         prop.setProperty("enableAutoCaffeine", Boolean.toString(config.isEnableAutoCaffeine()));
         prop.setProperty("serverRestartTime", valueOrDefault(config.getServerRestartTime(), "12"));

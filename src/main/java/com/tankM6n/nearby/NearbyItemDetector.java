@@ -4,8 +4,7 @@
 package com.tankM6n.nearby;
 
 import javax.imageio.ImageIO;
-import java.awt.Point;
-import java.awt.Rectangle;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;

@@ -14,6 +14,7 @@ public class AppConfig {
     private String caffeineMg = "";
     private boolean enableAutoCaffeine;
     private boolean enableAutoEat;
+    private String trainingEfficiency = "效率优先";
     private String serverRestartTime = "12";
     private long accumulatedTrainingMillis;
     // Codex生成：服务器每次重启完成后，用该间隔计算下一次重启时间。
@@ -97,6 +98,16 @@ public class AppConfig {
 
     public void setEnableAutoEat(boolean enableAutoEat) {
         this.enableAutoEat = enableAutoEat;
+    }
+
+    public String getTrainingEfficiency() {
+        return trainingEfficiency;
+    }
+
+    public void setTrainingEfficiency(String trainingEfficiency) {
+        this.trainingEfficiency = "敏捷优先".equals(trainingEfficiency)
+                ? "敏捷优先"
+                : "效率优先";
     }
 
     public String getServerRestartTime() {

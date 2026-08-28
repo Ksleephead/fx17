@@ -31,6 +31,8 @@ import javafx.util.Duration;
 
 import java.awt.*;
 import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
 import java.net.URL;
 import java.nio.file.Path;
 import java.time.LocalTime;
@@ -74,6 +76,10 @@ public class Main extends Application {
 
     // 下拉框引用
     private ComboBox<String> restTypeComboBox;
+
+    // 炼体策略下拉框，默认效率优先。
+    private ComboBox<String> trainingEfficiencyComboBox;
+    private volatile String trainingEfficiency = "效率优先";
 
     // ===================== 新增服务器重启 =====================
     private ComboBox<String> serverRestartComboBox; // 服务器重启时间下拉框
@@ -127,39 +133,39 @@ public class Main extends Application {
         root.setPadding(new Insets(20));
 
         // 添加顶部提示信息
-        Label tip1 = new Label("1、建筑手套放在7号位置");
+        Label tip1 = new Label("1、建筑手套放在7号快捷键");
         tip1.setLayoutX(20);
         tip1.setLayoutY(10);
         tip1.setFont(Font.font("System", FontWeight.BOLD, 14));
         tip1.setStyle("-fx-text-fill: red;");
 
-        Label tip2 = new Label("2、装奶的油桶放在5号位置");
+        Label tip2 = new Label("2、吃的放到4、9、0号快捷键");
         tip2.setLayoutX(20);
         tip2.setLayoutY(35);
         tip2.setFont(Font.font("System", FontWeight.BOLD, 14));
         tip2.setStyle("-fx-text-fill: red;");
 
-//        Label tip3 = new Label("3、咖啡粉放在8号位置");
+
         Label tip3 = new Label("3、分辨率改成【全屏】1024*768");
         tip3.setLayoutX(220);
         tip3.setLayoutY(10);
         tip3.setFont(Font.font("System", FontWeight.BOLD, 14));
         tip3.setStyle("-fx-text-fill: red;");
 
-        Label tip4 = new Label("4、面粉放在0号位置");
+        Label tip4 = new Label("4、装咖啡的瓶子放8号快捷键");
         tip4.setLayoutX(220);
         tip4.setLayoutY(35);
         tip4.setFont(Font.font("System", FontWeight.BOLD, 14));
         tip4.setStyle("-fx-text-fill: red;");
 
-        Label tip5 = new Label("5、装咖啡的瓶子放8号");
+        Label tip5 = new Label("5、鞋放在6号快捷键");
         tip5.setLayoutX(20);
         tip5.setLayoutY(60);
         tip5.setFont(Font.font("System", FontWeight.BOLD, 14));
         tip5.setStyle("-fx-text-fill: red;");
 
 
-        Label tip6 = new Label("6、按【↓】或【PGDN】停止训练");
+        Label tip6 = new Label("6、按【↓】或【PGDN】停止训练/停止做饭");
         tip6.setLayoutX(220);
         tip6.setLayoutY(60);
         tip6.setFont(Font.font("System", FontWeight.BOLD, 14));
@@ -171,7 +177,7 @@ public class Main extends Application {
         tip7.setFont(Font.font("System", FontWeight.BOLD, 14));
         tip7.setStyle("-fx-text-fill: red;");
 
-        Label tip8 = new Label("8、鞋放在6号快捷键");
+        Label tip8 = new Label("8、切屏进入游戏后按【←】开始做饭");
         tip8.setLayoutX(20);
         tip8.setLayoutY(110);
         tip8.setFont(Font.font("System", FontWeight.BOLD, 14));
@@ -287,10 +293,28 @@ public class Main extends Application {
         serverRestartIntervalComboBox.setValue(serverRestartInterval);
         serverRestartIntervalComboBox.valueProperty().addListener((obs, o, n) -> serverRestartInterval = n);
 
+        // ===================== 炼体效率选择 =====================
+        Label trainingEfficiencyLabel = new Label("选择炼体效率：");
+        trainingEfficiencyLabel.setLayoutX(20);
+        trainingEfficiencyLabel.setLayoutY(475);
+
+        trainingEfficiencyComboBox = new ComboBox<>();
+        trainingEfficiencyComboBox.setItems(FXCollections.observableArrayList(
+                "效率优先", "敏捷优先"));
+        trainingEfficiencyComboBox.setLayoutX(220);
+        trainingEfficiencyComboBox.setLayoutY(475);
+        trainingEfficiencyComboBox.setPrefWidth(120);
+        trainingEfficiencyComboBox.setValue("效率优先");
+        trainingEfficiencyComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue != null) {
+                trainingEfficiency = newValue;
+            }
+        });
+
         // ===================== 制作烤玉米数量 =====================
         Label cornCookCountLabel = new Label("制作烤玉米个数：");
         cornCookCountLabel.setLayoutX(20);
-        cornCookCountLabel.setLayoutY(475);
+        cornCookCountLabel.setLayoutY(510);
 
         cornCookCountComboBox = new ComboBox<>();
         ObservableList<Integer> cornCookCountOptions = FXCollections.observableArrayList();
@@ -299,7 +323,7 @@ public class Main extends Application {
         }
         cornCookCountComboBox.setItems(cornCookCountOptions);
         cornCookCountComboBox.setLayoutX(220);
-        cornCookCountComboBox.setLayoutY(475);
+        cornCookCountComboBox.setLayoutY(510);
         cornCookCountComboBox.setPrefWidth(120);
         cornCookCountComboBox.setValue(1);
         cornCookCountComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
@@ -311,21 +335,21 @@ public class Main extends Application {
         // 添加编辑/保存按钮
         editSaveButton = new Button("编辑");
         editSaveButton.setLayoutX(20);
-        editSaveButton.setLayoutY(510);
+        editSaveButton.setLayoutY(545);
         editSaveButton.setPrefWidth(150);
         editSaveButton.setOnAction(event -> toggleEditMode());
 
         // 添加开始训练按钮
         Button startButton = new Button("开始训练");
         startButton.setLayoutX(180);
-        startButton.setLayoutY(510);
+        startButton.setLayoutY(545);
         startButton.setPrefWidth(150);
         startButton.setOnAction(event -> startTraining("default"));
 
         // 添加停止训练按钮
         Button stopButton = new Button("停止训练");
         stopButton.setLayoutX(340);
-        stopButton.setLayoutY(510);
+        stopButton.setLayoutY(545);
         stopButton.setPrefWidth(150);
         stopButton.setOnAction(event -> stopTraining());
 
@@ -348,12 +372,13 @@ public class Main extends Application {
                 caffeineCheckBox, autoEatCheckBox,
                 serverRestartLabel, serverRestartComboBox,
                 serverRestartIntervalLabel, serverRestartIntervalComboBox,
+                trainingEfficiencyLabel, trainingEfficiencyComboBox,
                 cornCookCountLabel, cornCookCountComboBox,
                 editSaveButton, startButton, stopButton,
                 trainingDurationLabel, trainingDurationField);
 
         // 设置场景和舞台
-        Scene scene = new Scene(root, 500, 580); // 增加高度以容纳烤玉米数量下拉框
+        Scene scene = new Scene(root, 500, 615); // 增加高度以容纳炼体效率下拉框
         primaryStage.setTitle("SCUM创可贴免费炼体器(作者：GorphynMars)");
         primaryStage.setScene(scene);
 
@@ -455,6 +480,7 @@ public class Main extends Application {
         serverRestartComboBox.setDisable(!editable);
         // Codex生成：重启间隔只允许在编辑模式下修改。
         serverRestartIntervalComboBox.setDisable(!editable);
+        trainingEfficiencyComboBox.setDisable(!editable);
         cornCookCountComboBox.setDisable(!editable);
     }
 
@@ -473,6 +499,7 @@ public class Main extends Application {
         caffeineMg = config.getCaffeineMg();
         enableAutoCaffeine = config.isEnableAutoCaffeine();
         enableAutoEat = config.isEnableAutoEat();
+        trainingEfficiency = config.getTrainingEfficiency();
         serverRestartTime = config.getServerRestartTime();
         // Codex生成：加载已保存的服务器重启间隔。
         serverRestartInterval = config.getServerRestartInterval();
@@ -495,6 +522,7 @@ public class Main extends Application {
         config.setDropInsteadDestroy(dropInsteadDestroy);
         config.setRestType(restType);
         config.setEnableAutoEat(enableAutoEat);
+        config.setTrainingEfficiency(trainingEfficiency);
         config.setCaffeineMg(caffeineMg);
         config.setEnableAutoCaffeine(enableAutoCaffeine);
         config.setServerRestartTime(serverRestartTime);
@@ -538,6 +566,9 @@ public class Main extends Application {
         // 新增：更新自动吃饭复选框状态
         if (autoEatCheckBox != null) {
             autoEatCheckBox.setSelected(enableAutoEat);
+        }
+        if (trainingEfficiencyComboBox != null) {
+            trainingEfficiencyComboBox.setValue(trainingEfficiency);
         }
         // ===================== 更新服务器重启下拉框 =====================
         if (serverRestartComboBox != null) {
@@ -612,6 +643,7 @@ public class Main extends Application {
                     caffeineMgValue,      // 新增：当前已吸收咖啡因（毫克）
                     enableAutoEat,      // 新增：传递自动吃饭参数
                     value,              //是否需要切屏
+                    trainingEfficiency, // 炼体策略：效率优先或敏捷优先
                     service
             );
 
@@ -840,12 +872,63 @@ public class Main extends Application {
             currentCookThread.requestStop();
         }
     }
+    private void ensureRunning() throws InterruptedException {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException("training stopped");
+        }
+    }
+    private void safeDelay(long millis) throws InterruptedException {
+        long end = System.currentTimeMillis() + Math.max(0, millis);
+        while (System.currentTimeMillis() < end) {
+            ensureRunning();
+            Thread.sleep(Math.min(100, end - System.currentTimeMillis()));
+        }
+        ensureRunning();
+    }
 
     private void cook(){
         //TODO 做米饭的线程
 //            nearbyItemRobotThread = new NearbyItemRobotThread(matches);
 //            executor.submit(nearbyItemRobotThread);
-        //TODO 做烤玉米线程
+
+
+        try {
+            Robot robot = new Robot();
+            //打开tab
+            robot.keyPress(KeyEvent.VK_TAB);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_TAB);
+            safeDelay(200);
+            //打开1面板
+            robot.keyPress(KeyEvent.VK_1);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_1);
+            safeDelay(500);
+            Color infoColor = robot.getPixelColor(330, 58);
+            if (infoColor.getRed() > 180){
+                robot.mouseMove(330, 58);
+                safeDelay(200);
+                robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                safeDelay(50);
+                robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+                safeDelay(500);
+            }
+            //打开2面板
+            robot.keyPress(KeyEvent.VK_2);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_2);
+            safeDelay(300);
+            robot.mouseMove(965,24);
+            safeDelay(300);
+            robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+            safeDelay(50);
+            robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
+        //做烤玉米线程
         for (int i = 0 ; i < cornCookCount && !Thread.currentThread().isInterrupted(); i++) {
             System.out.println(i + "    cornCookCount    " + cornCookCount);
             List<ItemMatch> matches = detectNearbyItemsOnce();
