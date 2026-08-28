@@ -515,18 +515,7 @@ public class xiangzi extends Thread {
                     System.out.println("nengliang/" + nengliang + "/danBaizhi/" + danBaizhi + "/stomach/" + stomach + "/intestine/" + intestine + LocalDateTime.now());
                     if (nengliang || danBaizhi) {
                         if (stomach && intestine) {
-                            robot.keyPress(KeyEvent.VK_0);
-                            safeDelay(50);
-                            robot.keyRelease(KeyEvent.VK_0);
-                            safeDelay(3 * 1000);
-                            robot.keyPress(KeyEvent.VK_4);
-                            safeDelay(50);
-                            robot.keyRelease(KeyEvent.VK_4);
-                            safeDelay(3 * 1000);
-                            robot.keyPress(KeyEvent.VK_9);
-                            safeDelay(50);
-                            robot.keyRelease(KeyEvent.VK_9);
-                            safeDelay(3 * 1000);
+                            chi();
                         }
                     }else {
                         needRest = false;
@@ -623,19 +612,7 @@ public class xiangzi extends Thread {
         if (stomach && intestine) {
             if (trainingEfficiency.equals("效率优先") ? true : nengliang90) {
                 System.out.println(stomach + "" + intestine + nengliang90 + trainingEfficiency + LocalDateTime.now());
-
-                robot.keyPress(KeyEvent.VK_0);
-                safeDelay(50);
-                robot.keyRelease(KeyEvent.VK_0);
-                safeDelay(3 * 1000);
-                robot.keyPress(KeyEvent.VK_4);
-                safeDelay(50);
-                robot.keyRelease(KeyEvent.VK_4);
-                safeDelay(3 * 1000);
-                robot.keyPress(KeyEvent.VK_9);
-                safeDelay(50);
-                robot.keyRelease(KeyEvent.VK_9);
-                safeDelay(3 * 1000);
+                chi();
             }
         }
         //满足任意条件 就强制休息
@@ -643,6 +620,21 @@ public class xiangzi extends Thread {
             System.err.println("检测到能量或蛋白质或水分不足！，强制休息" + LocalDateTime.now());
             needRest = true;
         }
+    }
+
+    private void chi() throws InterruptedException {
+        robot.keyPress(KeyEvent.VK_0);
+        safeDelay(50);
+        robot.keyRelease(KeyEvent.VK_0);
+        safeDelay(4 * 1000);
+        robot.keyPress(KeyEvent.VK_4);
+        safeDelay(50);
+        robot.keyRelease(KeyEvent.VK_4);
+        safeDelay(4 * 1000);
+        robot.keyPress(KeyEvent.VK_9);
+        safeDelay(50);
+        robot.keyRelease(KeyEvent.VK_9);
+        safeDelay(4 * 1000);
     }
 
     private void oldEat(boolean stomach, boolean intestine, boolean nengliang, boolean danBaizhi, boolean water) throws InterruptedException {
