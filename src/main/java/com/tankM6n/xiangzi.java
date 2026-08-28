@@ -308,8 +308,20 @@ public class xiangzi extends Thread {
         //不让吃
         return false;
     }
-    public boolean checkNengLiang() {
-        Color stomachlColor = getPixelColor(783, 38);
+    public boolean checkNengLiang90() {
+        Color stomachlColor = getPixelColor(740, 35); //90%
+        int blue = stomachlColor.getBlue();
+
+        if (blue > 60) {
+            System.out.println(LocalDateTime.now() + "能量充足");
+            //是蓝色，那就不需要吃东西
+            return false;
+        }
+        //默认需要吃
+        return true;
+    }
+    public boolean checkNengLiang2() {
+        Color stomachlColor = getPixelColor(783, 38); //20%
         int blue = stomachlColor.getBlue();
 
         if (blue > 60) {
@@ -568,7 +580,8 @@ public class xiangzi extends Thread {
         ensureRunning();
         boolean intestine = checkcIntestine();
         boolean stomach = checkStomach();
-        boolean nengliang = checkNengLiang();
+        boolean nengliang90 = checkNengLiang90();
+        boolean nengliang20 = checkNengLiang2();
         boolean danBaizhi = checkDanBaiZhi();
         boolean water = checkWater();
 
@@ -582,8 +595,8 @@ public class xiangzi extends Thread {
         //新版本策略，只要胃还能吃得下，就一直吃，直到肠道满了,如果能量和蛋白质还能跟上，就接着炼体，如果能量或蛋白质或水有一项不满足，就休息
 
         if (stomach && intestine) {
-            if (trainingEfficiency.equals("效率优先") ? true : nengliang) {
-                System.out.println(stomach + "" + intestine + nengliang + trainingEfficiency + LocalDateTime.now());
+            if (trainingEfficiency.equals("效率优先") ? true : nengliang90) {
+                System.out.println(stomach + "" + intestine + nengliang90 + trainingEfficiency + LocalDateTime.now());
 
                 robot.keyPress(KeyEvent.VK_0);
                 safeDelay(50);
@@ -600,7 +613,7 @@ public class xiangzi extends Thread {
             }
         }
         //满足任意条件 就强制休息
-        if (nengliang || danBaizhi || water){
+        if (nengliang20 || danBaizhi || water){
             System.err.println("检测到能量或蛋白质或水分不足！，强制休息" + LocalDateTime.now());
             needRest = true;
         }
