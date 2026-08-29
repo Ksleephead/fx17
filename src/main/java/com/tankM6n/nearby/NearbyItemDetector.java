@@ -16,7 +16,7 @@ import java.util.List;
 
 /**
  * 通用附近物品识别器：截取固定网格，为每个槽位选择相似度最高的已知模板。
- * 当前注册平底锅、石头火堆、米和水四种模板，不执行任何鼠标或键盘操作。
+ * 当前注册所有已配置的附近物品模板，不执行任何鼠标或键盘操作。
  */
 public final class NearbyItemDetector {
     private final NearbyItemDetectorConfig config;
@@ -60,7 +60,13 @@ public final class NearbyItemDetector {
                         loadGrayTemplate(config.cornTemplatePath()),
                         config.cornIconOffsetX(),
                         config.cornIconOffsetY(),
-                        config.cornSimilarityThreshold()));
+                        config.cornSimilarityThreshold()),
+                new ItemTemplate(
+                        ItemType.FISH,
+                        loadGrayTemplate(config.fishTemplatePath()),
+                        config.fishIconOffsetX(),
+                        config.fishIconOffsetY(),
+                        config.fishSimilarityThreshold()));
 
         // 模板尺寸各不相同，加载后逐个检查 ±radius 搜索范围是否仍在槽位内。
         for (ItemTemplate template : templates) {
@@ -84,6 +90,21 @@ public final class NearbyItemDetector {
                 config.nearbyWidth(),
                 config.nearbyHeight());
         BufferedImage nearbyScreenshot = screenCapture.capture(nearbyArea);
+        return detectDetailed(nearbyScreenshot);
+    }
+
+    /**
+     * 对已经截取好的 nearby 区域执行同一套识别，便于使用保存的游戏截图校准模板。
+     */
+    public DetectionResult detectDetailed(BufferedImage nearbyScreenshot) {
+        if (nearbyScreenshot == null
+                || nearbyScreenshot.getWidth() != config.nearbyWidth()
+                || nearbyScreenshot.getHeight() != config.nearbyHeight()) {
+            throw new IllegalArgumentException(
+                    "nearby 截图尺寸必须为 "
+                            + config.nearbyWidth() + "x" + config.nearbyHeight());
+        }
+
         List<ItemMatch> matches = new ArrayList<>();
         List<SlotSimilarity> slotSimilarities = new ArrayList<>();
 

@@ -9,7 +9,8 @@ public enum ItemType {
     STONE_FIRE("stoneFire"),
     RICE("rice"),
     WATER("water"),
-    CORN("corn");
+    CORN("corn"),
+    FISH("fish");
 
     private final String displayName;
 

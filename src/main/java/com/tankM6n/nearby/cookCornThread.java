@@ -20,14 +20,16 @@ import java.util.stream.Collectors;
  * 当前只搭建通用遍历入口，尚未加入鼠标移动或点击行为。
  */
 public final class cookCornThread extends Thread {
+    private String cookType;
     private final List<ItemMatch> itemMatches;
     private Robot robot;
     private RegionTemplateDetector panPositionDetector;
     private volatile List<ScreenTemplateMatch> panPositions;
 
-    public cookCornThread(List<ItemMatch> itemMatches) {
+    public cookCornThread(List<ItemMatch> itemMatches , String cookType) {
         super("scum-nearby-item-robot");
         this.itemMatches = List.copyOf(Objects.requireNonNull(itemMatches, "itemMatches"));
+        this.cookType = cookType;
     }
 
     @Override
@@ -38,7 +40,17 @@ public final class cookCornThread extends Thread {
             }
             Map<ItemType, List<ItemMatch>> collect = itemMatches.stream()
                     .collect(Collectors.groupingBy(ItemMatch::type));
-            List<ItemMatch> corns = collect.get(ItemType.CORN);
+            List<ItemMatch> martirail = null;
+            if ("烤玉米".equals(cookType)){
+                martirail = collect.get(ItemType.CORN);
+            } else if ("烤鱼".equals(cookType)) {
+                martirail = collect.get(ItemType.FISH);
+            }
+            if (martirail.size() < 0){
+                System.out.println("未识别到原材料");
+                return;
+            }
+
             robot = new Robot();
 
             //关闭tab
@@ -48,18 +60,20 @@ public final class cookCornThread extends Thread {
             // 开始做饭
 
 
-            if (corns.size() < 0){
-                System.out.println("未识别到玉米");
-                return;
-            }
-
             safeDelay(1 * 1000);
-            Iterator<ItemMatch> cornIterator = corns.iterator();
+            Iterator<ItemMatch> martirailIterator = martirail.iterator();
             int count = 0;
-            while (cornIterator.hasNext()) {
-                if (count >= 10){
-                    break;
+            while (martirailIterator.hasNext()) {
+                if ("烤玉米".equals(cookType)){
+                    if (count >= 10){
+                        break;
+                    }
+                } else if ("烤鱼".equals(cookType)) {
+                    if (count >= 4){
+                        break;
+                    }
                 }
+
 
                 //打开tab
                 robot.keyPress(KeyEvent.VK_TAB);
@@ -80,13 +94,23 @@ public final class cookCornThread extends Thread {
                     safeDelay(50);
                     robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
 
-                    //选择烤蔬菜
-                    safeDelay(500);
-                    robot.mouseMove(848 , 307);
-                    safeDelay(500);
-                    robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-                    safeDelay(50);
-                    robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+                    if ("烤玉米".equals(cookType)){
+                        //选择烤蔬菜
+                        safeDelay(500);
+                        robot.mouseMove(848 , 307);
+                        safeDelay(500);
+                        robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                        safeDelay(50);
+                        robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+                    } else if ("烤鱼".equals(cookType)) {
+                        //选择烤鱼
+                        safeDelay(500);
+                        robot.mouseMove(961 , 195);
+                        safeDelay(500);
+                        robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                        safeDelay(50);
+                        robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+                    }
 
                     //点击烹饪
                     safeDelay(500);
@@ -106,23 +130,34 @@ public final class cookCornThread extends Thread {
                     int pingdiguoY = panPosition.screenY();
 
                     //偏移量
-                    int[][] points = {
-                            {0, 32},
-                            {133, 32},
-                            {176, 32},
-                            {0, 75},
-                            {44, 76}
-                    };
+                    int[][] points = null;;
+                    if ("烤玉米".equals(cookType)){
+                        points = new int[][]{
+                                {0, 32},
+                                {133, 32},
+                                {176, 32},
+                                {0, 75},
+                                {44, 76}
+                        };
+                    } else if ("烤鱼".equals(cookType)) {
+                        points = new int[][]{
+                                {0, 32},
+                                {133, 32}
+                        };
+                    }
                     for (int i = 0; i < points.length; i++) {
                         count++;
-                        if (count > 10){
-                            break;
+                        if ("烤玉米".equals(cookType)){
+                            if (count > 10) break;
+                        } else if ("烤鱼".equals(cookType)) {
+                            if (count > 4) break;
                         }
-                        ItemMatch corn = cornIterator.next();
+
+                        ItemMatch corn = martirailIterator.next();
                         int xBias = points[i][0];
                         int yBias = points[i][1];
                         if (!moveCorn(corn, pingdiguoX, pingdiguoY, 0, xBias, yBias)) {
-                            corn = cornIterator.next();
+                            corn = martirailIterator.next();
                             moveCorn(corn, pingdiguoX, pingdiguoY, 0, xBias, yBias);
                         }
                     }
@@ -171,7 +206,7 @@ public final class cookCornThread extends Thread {
 
     private void detectCookStatus() throws InterruptedException {
         // ===== 配置参数 =====
-        int maxDepth = 15;           // 最大检测次数（比如 30 次 = 30 秒）
+        int maxDepth = 45;           // 最大检测次数（比如 30 次 = 30 秒）
         int checkInterval = 1;       // 检测间隔（秒）
 
         // ===== 共享状态 =====
@@ -197,8 +232,8 @@ public final class cookCornThread extends Thread {
 
             try {
                 Color color = getPixelColor(
-                        panPositions.get(0).screenX() + 17,
-                        panPositions.get(0).screenY() + 110);
+                        panPositions.get(0).screenX() - 21,
+                        panPositions.get(0).screenY() + 103);
                 if (Thread.currentThread().isInterrupted()) {
                     return;
                 }

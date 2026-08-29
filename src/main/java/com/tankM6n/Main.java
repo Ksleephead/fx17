@@ -930,7 +930,7 @@ public class Main extends Application {
                 return;
             }
             if (matches != null && matches.size() > 0) {
-                cookCornThread currentCookThread = new cookCornThread(matches);
+                cookCornThread currentCookThread = new cookCornThread(matches , "烤鱼");
                 cookCornThread = currentCookThread;
                 currentCookThread.start();
                 try {
@@ -961,7 +961,7 @@ public class Main extends Application {
             List<ItemMatch> matches = result.matches();
             EnumSet<ItemType> detectedTypes = EnumSet.noneOf(ItemType.class);
 
-            // 每个槽位只打印一行，展示四种已知物品的相似度。
+            // 每个槽位只打印一行，展示所有已知物品的相似度。
             for (SlotSimilarity slot : result.slotSimilarities()) {
                 if (slot.detectedType() != null) {
                     detectedTypes.add(slot.detectedType());
@@ -970,13 +970,15 @@ public class Main extends Application {
                         Locale.ROOT,
                         "SLOT -> row=%d col=%d x=%d y=%d "
                                 + "panSimilarity=%.3f stoneFireSimilarity=%.3f "
-                                + "riceSimilarity=%.3f waterSimilarity=%.3f cornSimilarity=%.3f detected=%s%n",
+                                + "riceSimilarity=%.3f waterSimilarity=%.3f "
+                                + "cornSimilarity=%.3f fishSimilarity=%.3f detected=%s%n",
                         slot.row(), slot.col(), slot.screenX(), slot.screenY(),
                         slot.similarity(ItemType.PAN),
                         slot.similarity(ItemType.STONE_FIRE),
                         slot.similarity(ItemType.RICE),
                         slot.similarity(ItemType.WATER),
                         slot.similarity(ItemType.CORN),
+                        slot.similarity(ItemType.FISH),
                         slot.detectedType() == null ? "NONE" : slot.detectedType());
             }
 

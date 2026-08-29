@@ -32,17 +32,21 @@ public record NearbyItemDetectorConfig(
         int waterIconOffsetY,
         int cornIconOffsetX,
         int cornIconOffsetY,
+        int fishIconOffsetX,
+        int fishIconOffsetY,
         int positionSearchRadius,
         String panTemplatePath,
         String stoneFireTemplatePath,
         String riceTemplatePath,
         String waterTemplatePath,
         String cornTemplatePath,
+        String fishTemplatePath,
         double panSimilarityThreshold,
         double stoneFireSimilarityThreshold,
         double riceSimilarityThreshold,
         double waterSimilarityThreshold,
-        double cornSimilarityThreshold) {
+        double cornSimilarityThreshold,
+        double fishSimilarityThreshold) {
 
     public static NearbyItemDetectorConfig load(Path configPath) throws IOException {
         Path absoluteConfigPath = configPath.toAbsolutePath().normalize();
@@ -72,17 +76,21 @@ public record NearbyItemDetectorConfig(
                 integer(properties, "waterIconOffsetY"),
                 integer(properties, "cornIconOffsetX"),
                 integer(properties, "cornIconOffsetY"),
+                integer(properties, "fishIconOffsetX"),
+                integer(properties, "fishIconOffsetY"),
                 integer(properties, "positionSearchRadius"),
                 resolveTemplateLocation(properties, "panTemplatePath", absoluteConfigPath),
                 resolveTemplateLocation(properties, "stoneFireTemplatePath", absoluteConfigPath),
                 resolveTemplateLocation(properties, "riceTemplatePath", absoluteConfigPath),
                 resolveTemplateLocation(properties, "waterTemplatePath", absoluteConfigPath),
                 resolveTemplateLocation(properties, "cornTemplatePath", absoluteConfigPath),
+                resolveTemplateLocation(properties, "fishTemplatePath", absoluteConfigPath),
                 decimal(properties, "panSimilarityThreshold"),
                 decimal(properties, "stoneFireSimilarityThreshold"),
                 decimal(properties, "riceSimilarityThreshold"),
                 decimal(properties, "waterSimilarityThreshold"),
-                decimal(properties, "cornSimilarityThreshold"));
+                decimal(properties, "cornSimilarityThreshold"),
+                decimal(properties, "fishSimilarityThreshold"));
         config.validate();
         return config;
     }
@@ -118,6 +126,7 @@ public record NearbyItemDetectorConfig(
         validateIconArea("rice", riceIconOffsetX, riceIconOffsetY);
         validateIconArea("water", waterIconOffsetX, waterIconOffsetY);
         validateIconArea("corn", cornIconOffsetX, cornIconOffsetY);
+        validateIconArea("fish", fishIconOffsetX, fishIconOffsetY);
 
         long gridWidth = (long) cols * slotWidth + (long) (cols - 1) * slotGapX;
         long gridHeight = (long) rows * slotHeight + (long) (rows - 1) * slotGapY;
@@ -132,6 +141,7 @@ public record NearbyItemDetectorConfig(
         validateThreshold("riceSimilarityThreshold", riceSimilarityThreshold);
         validateThreshold("waterSimilarityThreshold", waterSimilarityThreshold);
         validateThreshold("cornSimilarityThreshold", cornSimilarityThreshold);
+        validateThreshold("fishSimilarityThreshold", fishSimilarityThreshold);
     }
 
     /** 不同物品在槽位内的位置不同，因此分别验证各自的裁剪偏移。 */
