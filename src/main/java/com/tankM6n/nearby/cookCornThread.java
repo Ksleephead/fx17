@@ -206,7 +206,7 @@ public final class cookCornThread extends Thread {
 
     private void detectCookStatus() throws InterruptedException {
         // ===== 配置参数 =====
-        int maxDepth = 45;           // 最大检测次数（比如 30 次 = 30 秒）
+        int maxDepth = 50;           // 最大检测次数（比如 30 次 = 30 秒）
         int checkInterval = 1;       // 检测间隔（秒）
 
         // ===== 共享状态 =====
