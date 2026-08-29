@@ -38,8 +38,6 @@ public final class cookCornThread extends Thread {
             }
             Map<ItemType, List<ItemMatch>> collect = itemMatches.stream()
                     .collect(Collectors.groupingBy(ItemMatch::type));
-            List<ItemMatch> stoneFires = collect.get(ItemType.STONE_FIRE);
-//            List<ItemMatch> pans = collect.get(ItemType.PAN);
             List<ItemMatch> corns = collect.get(ItemType.CORN);
             robot = new Robot();
 
@@ -49,10 +47,7 @@ public final class cookCornThread extends Thread {
             robot.keyRelease(KeyEvent.VK_TAB);
             // 开始做饭
 
-//            if (pans.size() < 0){
-//                System.out.println("未识别到锅");
-//                return;
-//            }
+
             if (corns.size() < 0){
                 System.out.println("未识别到玉米");
                 return;
@@ -65,28 +60,11 @@ public final class cookCornThread extends Thread {
                 if (count >= 10){
                     break;
                 }
-//                ItemMatch pan = pans.get(0);
-//                int x = pan.screenX();
-//                int y = pan.screenY();
+
                 //打开tab
                 robot.keyPress(KeyEvent.VK_TAB);
                 safeDelay(50);
                 robot.keyRelease(KeyEvent.VK_TAB);
-
-//                safeDelay(500);
-//                robot.mouseMove(x , y);
-//                safeDelay(200);
-//                robot.mousePress(MouseEvent.BUTTON3_DOWN_MASK);
-//                safeDelay(50);
-//                robot.mouseRelease(MouseEvent.BUTTON3_DOWN_MASK);
-//
-//                //移动到烹饪食品上面
-//                safeDelay(500);
-//                robot.mouseMove(x + 20 , y + 80);
-//                safeDelay(500);
-//                robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-//                safeDelay(50);
-//                robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
 
                 safeDelay(500);
                 panPositions = findPanPositions();

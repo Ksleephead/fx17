@@ -108,7 +108,7 @@ public class Main extends Application {
     private NearbyItemDetector nearbyItemDetector;
 
     // 接收检测结果并执行后续 Robot 操作的独立线程。
-    private volatile NearbyItemRobotThread nearbyItemRobotThread;
+//    private volatile NearbyItemRobotThread nearbyItemRobotThread;
     private volatile cookCornThread cookCornThread;
     // 控制多轮烤玉米的外层线程；与单轮 cookCornThread 分开，便于停止整个 cook()。
     private volatile Thread cookTaskThread;
@@ -862,9 +862,6 @@ public class Main extends Application {
     }
 
     private void cook(){
-        //TODO 做米饭的线程
-//            nearbyItemRobotThread = new NearbyItemRobotThread(matches);
-//            executor.submit(nearbyItemRobotThread);
 
 
         try {
@@ -902,6 +899,28 @@ public class Main extends Application {
             e.printStackTrace();
         }
 
+
+//        //做米饭的线程
+//        for (int i = 0 ; i < cornCookCount && !Thread.currentThread().isInterrupted(); i++) {
+//            System.out.println(i + "    CookCount    " + cornCookCount);
+//            List<ItemMatch> matches = detectNearbyItemsOnce();
+//            if (Thread.currentThread().isInterrupted()) {
+//                return;
+//            }
+//            if (matches != null && matches.size() > 0) {
+//                nearbyItemRobotThread = new NearbyItemRobotThread(matches);
+//                nearbyItemRobotThread.start();
+//                try {
+//                    nearbyItemRobotThread.join();
+//                } catch (InterruptedException e) {
+//                    nearbyItemRobotThread.requestStop();
+//                    Thread.currentThread().interrupt();
+//                    return;
+//                } finally {
+//                    nearbyItemRobotThread = null;
+//                }
+//            }
+//        }
 
         //做烤玉米线程
         for (int i = 0 ; i < cornCookCount && !Thread.currentThread().isInterrupted(); i++) {
@@ -978,10 +997,10 @@ public class Main extends Application {
     }
 
     private synchronized void stopNearbyItemRobotThread() {
-        if (nearbyItemRobotThread != null) {
-            nearbyItemRobotThread.requestStop();
-            nearbyItemRobotThread = null;
-        }
+//        if (nearbyItemRobotThread != null) {
+//            nearbyItemRobotThread.requestStop();
+//            nearbyItemRobotThread = null;
+//        }
         if (cookCornThread != null) {
             cookCornThread.requestStop();
             cookCornThread = null;

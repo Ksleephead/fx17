@@ -421,11 +421,8 @@ public class xiangzi extends Thread {
             }
             needRestLogic();
             //开局修手套
-            if (i == 0){
-                fixGloves(robot);
-                fixGloves(robot);
-            }
             standUp(i, robot);
+            fixGloves(robot);
             //吃东西
             eat(i);
             ensureRunning();
