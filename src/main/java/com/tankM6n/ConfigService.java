@@ -23,6 +23,7 @@ public class ConfigService {
 
         config.setDrinkWaterAfter(prop.getProperty("drinkWaterAfter", ""));
         config.setRecoveryTime(prop.getProperty("recoveryTime", ""));
+        config.setTimePerHit(prop.getProperty("timePerHit", "32"));
         config.setDropInsteadDestroy(Boolean.parseBoolean(prop.getProperty("dropInsteadDestroy", "false")));
         config.setRestType(prop.getProperty("restType", "趴下"));
         config.setCaffeineMg(prop.getProperty("caffeineMg", ""));
@@ -43,6 +44,7 @@ public class ConfigService {
 
         prop.setProperty("drinkWaterAfter", valueOrEmpty(config.getDrinkWaterAfter()));
         prop.setProperty("recoveryTime", valueOrEmpty(config.getRecoveryTime()));
+        prop.setProperty("timePerHit", valueOrDefault(config.getTimePerHit(), "32"));
         prop.setProperty("dropInsteadDestroy", Boolean.toString(config.isDropInsteadDestroy()));
         prop.setProperty("restType", valueOrDefault(config.getRestType(), "趴下"));
         prop.setProperty("enableAutoEat", Boolean.toString(config.isEnableAutoEat()));

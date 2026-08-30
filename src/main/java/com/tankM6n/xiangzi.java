@@ -8,14 +8,17 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.concurrent.*;
 
 
 public class xiangzi extends Thread {
 
     private double recoveryTime;       // 体力恢复时间（单位：秒） 65
+    private double timePerHit;          // 砸一次箱子的等待时间（单位：秒）
     private boolean dropInsteadDestroy = false; // 是否丢下而不是摧毁（新增复选框状态）
     private String insideGameOrNot = "default";
     private String restType;              // 传递休息类型参数
@@ -35,12 +38,13 @@ public class xiangzi extends Thread {
 
     private ExecutorService executor;
     //是否需要强制休息
-    private volatile boolean needRest;
+    private volatile String needRest;
 
     // 添加构造方法接收6个double参数
 
-    public xiangzi(double recoveryTime, boolean dropInsteadDestroy, String restType, boolean enableAutoCaffeine, double caffeineMgValue, boolean enableAutoEat, String insideGameOrNot, String trainingEfficiency, ExecutorService executor) {
+    public xiangzi(double recoveryTime, double timePerHit, boolean dropInsteadDestroy, String restType, boolean enableAutoCaffeine, double caffeineMgValue, boolean enableAutoEat, String insideGameOrNot, String trainingEfficiency, ExecutorService executor) {
         this.recoveryTime = recoveryTime;
+        this.timePerHit = timePerHit;
         this.dropInsteadDestroy = dropInsteadDestroy;
         this.restType = restType;
         this.caffeineMgValue = caffeineMgValue;
@@ -54,7 +58,7 @@ public class xiangzi extends Thread {
     @Override
     public void run() {
         try {
-            needRest = false;
+            needRest = "Unnecessary";
             robot = new Robot();
             running = true;
             zaxiangzi();
@@ -85,7 +89,7 @@ public class xiangzi extends Thread {
         ensureRunning();
     }
 
-    /** 比较两张截图的尺寸和每一个 RGB 像素是否完全相同。 */
+    /** 比较两张截图的尺寸和所有 RGB 像素是否完全相同。 */
     private boolean imagesAreEqual(BufferedImage first, BufferedImage second) {
         if (first == null || second == null
                 || first.getWidth() != second.getWidth()
@@ -93,14 +97,25 @@ public class xiangzi extends Thread {
             return false;
         }
 
-        for (int y = 0; y < first.getHeight(); y++) {
-            for (int x = 0; x < first.getWidth(); x++) {
-                if (first.getRGB(x, y) != second.getRGB(x, y)) {
-                    return false;
-                }
-            }
+        int pixelCount = first.getWidth() * first.getHeight();
+
+        // Robot 截图通常是连续的 int 像素缓冲区，直接比较底层数组，
+        // 避免为每个像素重复调用 BufferedImage.getRGB(x, y)。
+        if (first.getRaster().getDataBuffer() instanceof DataBufferInt firstBuffer
+                && second.getRaster().getDataBuffer() instanceof DataBufferInt secondBuffer
+                && firstBuffer.getNumBanks() == 1
+                && secondBuffer.getNumBanks() == 1
+                && firstBuffer.getSize() == pixelCount
+                && secondBuffer.getSize() == pixelCount) {
+            return Arrays.equals(firstBuffer.getData(), secondBuffer.getData());
         }
-        return true;
+
+        // 兼容非 int 缓冲区图片；一次批量读取后交给 JDK 比较。
+        int[] firstPixels = first.getRGB(
+                0, 0, first.getWidth(), first.getHeight(), null, 0, first.getWidth());
+        int[] secondPixels = second.getRGB(
+                0, 0, second.getWidth(), second.getHeight(), null, 0, second.getWidth());
+        return Arrays.equals(firstPixels, secondPixels);
     }
 
     private void releaseKeys() {
@@ -419,9 +434,9 @@ public class xiangzi extends Thread {
             if (!running) {
                 break;
             }
-            needRestLogic();
             //开局修手套
             standUp(i, robot);
+            needRestLogic();
             fixGloves(robot);
             //吃东西
             eat(i);
@@ -463,7 +478,86 @@ public class xiangzi extends Thread {
     }
 
     private void needRestLogic() throws InterruptedException {
-        if (needRest){
+        //如果能量够、蛋白质够，但是水分没跟上就单独喝水
+        if ("drinkWater".equals(needRest)){
+            //打开tab
+            tabSwitch();
+            safeDelay(500);
+            //切换到4
+            robot.keyPress(KeyEvent.VK_4);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_4);
+            safeDelay(500);
+            //如果允许吃
+            if (checkStomach() && checkcIntestine()) {
+                robot.keyPress(KeyEvent.VK_1);
+                safeDelay(50);
+                robot.keyRelease(KeyEvent.VK_1);
+                safeDelay(500);
+                //1、先找到箱子,打开箱子
+//                robot.mouseMove(400,80);
+//                //右键
+//                robot.mousePress(MouseEvent.BUTTON3_DOWN_MASK);
+//                safeDelay(50);
+//                robot.mouseRelease(MouseEvent.BUTTON3_DOWN_MASK);
+//                //打开物品栏
+//                safeDelay(500);
+//                robot.mouseMove(430 , 125);
+//                safeDelay(500);
+//                //左键
+//                robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+//                safeDelay(50);
+//                robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+//                //这里有可能会点到清理库存，检测一下是不是打开了
+//                getPixelColor(444,347);
+                //检测箱子是不是打开了
+                Color xiangziColor = robot.getPixelColor(475, 170);
+                if (xiangziColor.getRed() < 200) {
+                    //430 200 双击一下箱子
+                    robot.mouseMove(430 , 200);
+                    safeDelay(500);
+                    robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                    safeDelay(50);
+                    robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+                    safeDelay(100);
+                    robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                    safeDelay(50);
+                    robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+                }
+
+                safeDelay(1000);
+                //2、找到油桶，拿到手上
+                moveWater(0);
+                //3、喝3口
+                for (int i = 0 ; i < 3; i++) {
+                    safeDelay(500);
+                    robot.mouseMove(865,135);
+                    safeDelay(500);
+                    //右键
+                    robot.mousePress(MouseEvent.BUTTON3_DOWN_MASK);
+                    safeDelay(50);
+                    robot.mouseRelease(MouseEvent.BUTTON3_DOWN_MASK);
+                    safeDelay(500);
+                    robot.mouseMove(890,269);
+                    safeDelay(500);
+                    robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                    safeDelay(50);
+                    robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+                    safeDelay(3000);
+                }
+                //把油桶移动回去
+                moveWater2(0);
+                safeDelay(500);
+                if (getPixelColor(448, 80).getRed() > 90) {
+                    moveWater3(0);
+                }
+            }
+            //关闭tab
+            safeDelay(500);
+            tabSwitch();
+            needRest = "Unnecessary";
+        }
+        if ("necessary".equals(needRest)){
             standUp(1, robot);
             // 1. 创建一个计数器为 1 的闩锁
             CountDownLatch latch = new CountDownLatch(1);
@@ -515,7 +609,7 @@ public class xiangzi extends Thread {
                             chi();
                         }
                     }else {
-                        needRest = false;
+                        needRest = "Unnecessary";
                         System.out.println("✅ 条件满足！准备唤醒外面线程...");
                         latch.countDown(); // 计数器减为 0，唤醒外面等待的线程
                         return;
@@ -544,6 +638,73 @@ public class xiangzi extends Thread {
             }
 
             System.out.println("被唤醒，定时检测已关闭");
+        }
+    }
+
+    private void moveWater(int tryTimes) throws InterruptedException {
+        int maxTryTimes = 20;
+        if (tryTimes > maxTryTimes){
+            return;
+        }
+        //移动到水上面
+        robot.mouseMove(444,347);
+        safeDelay(500);
+        robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+        safeDelay(500);
+        //移动到手上
+        robot.mouseMove(865,135);
+        safeDelay(500);
+        robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+        safeDelay(500);
+        //检测是否正确移动
+        Color color = getPixelColor(850, 130);
+        if (color.getRed() < 90) {
+            System.out.println(LocalDateTime.now() + "从箱子移动到手上失败，重试，重试次数：" + tryTimes);
+            moveWater(tryTimes + 1);
+        }
+    }
+    private void moveWater2(int tryTimes) throws InterruptedException {
+        int maxTryTimes = 20;
+        if (tryTimes > maxTryTimes){
+            return;
+        }
+        //移动到手上
+        robot.mouseMove(865,135);
+        safeDelay(500);
+        robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+        safeDelay(500);
+        //移动到箱子里面
+        robot.mouseMove(400,80);
+        safeDelay(500);
+        robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+        safeDelay(500);
+        //检测是否正确移动
+        Color color = getPixelColor(435,345);
+        if (color.getRed() < 90) {
+            System.out.println(LocalDateTime.now() + "从手上移动到箱子失败，重试，重试次数：" + tryTimes);
+            moveWater2(tryTimes + 1);
+        }
+    }
+    private void moveWater3(int tryTimes) throws InterruptedException {
+        int maxTryTimes = 20;
+        if (tryTimes > maxTryTimes){
+            return;
+        }
+        //移动第二格
+        robot.mouseMove(448, 80);
+        safeDelay(500);
+        robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+        safeDelay(500);
+        //移动到箱子里面
+        robot.mouseMove(400,80);
+        safeDelay(500);
+        robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+        safeDelay(500);
+        //检测是否正确移动
+        Color color = getPixelColor(435,345);
+        if (color.getRed() < 90) {
+            System.out.println(LocalDateTime.now() + "从物品栏移动到箱子失败，重试，重试次数：" + tryTimes);
+            moveWater3(tryTimes + 1);
         }
     }
 
@@ -615,23 +776,26 @@ public class xiangzi extends Thread {
         //满足任意条件 就强制休息
         if (nengliang20 || danBaizhi || water){
             System.err.println("检测到能量或蛋白质或水分不足！，强制休息" + LocalDateTime.now());
-            needRest = true;
+            needRest = "necessary";
+        }
+        if ((!nengliang20 && !danBaizhi) && water){
+            needRest = "drinkWater";
         }
     }
 
     private void chi() throws InterruptedException {
         robot.keyPress(KeyEvent.VK_0);
-        safeDelay(50);
+        safeDelay(100);
         robot.keyRelease(KeyEvent.VK_0);
-        safeDelay(4 * 1000);
+        safeDelay(5 * 1000);
         robot.keyPress(KeyEvent.VK_4);
-        safeDelay(50);
+        safeDelay(100);
         robot.keyRelease(KeyEvent.VK_4);
-        safeDelay(4 * 1000);
+        safeDelay(5 * 1000);
         robot.keyPress(KeyEvent.VK_9);
-        safeDelay(50);
+        safeDelay(100);
         robot.keyRelease(KeyEvent.VK_9);
-        safeDelay(4 * 1000);
+        safeDelay(5 * 1000);
     }
 
     private void oldEat(boolean stomach, boolean intestine, boolean nengliang, boolean danBaizhi, boolean water) throws InterruptedException {
@@ -813,29 +977,51 @@ public class xiangzi extends Thread {
         Future<Boolean> coffeeContains = coffeeStatus();
         //第一次砸
         if (j != 3){
-            safeDelay(27 * 1000);
+            safeDelay(Math.max(1L, Math.round(timePerHit * 1000.0)));
         }else{
-            // 检测区域：(128,317) 到右下边界 (158,324)，尺寸为 15×7。
+            // 检测区域：(128,317) 到右下边界 (158,324)，尺寸为 30×7。
             Rectangle monitoredArea = new Rectangle(128, 317, 30, 7);
             BufferedImage previousImage = robot.createScreenCapture(monitoredArea);
-            for (int i = 0; i < 30; i++) {
-                safeDelay(1000);
-                // 每秒检测一次；safeDelay 可以在按下停止热键后及时结束线程。
-                BufferedImage currentImage = robot.createScreenCapture(monitoredArea);
-                if (imagesAreEqual(previousImage, currentImage)) {
-                    System.out.println("检测区域已稳定，继续运行");
+            long comparisonStartedAt = System.nanoTime();
+            long comparisonTimeLimit = TimeUnit.MILLISECONDS.toNanos(
+                    Math.max(1L, Math.round(timePerHit * 1000.0))
+            );
+            for (int i = 0; i < 20; i++) {
+                // 每轮开始先检查累计耗时，确保该等待循环不会无限阻塞。
+                long elapsed = System.nanoTime() - comparisonStartedAt;
+                if (elapsed >= comparisonTimeLimit) {
+                    System.out.println("检测区域等待达到上限，继续运行" + LocalDateTime.now());
                     break;
                 }
 
-                System.out.println("检测区域仍在变化，继续等待");
+                // 每 2 秒检测一次；safeDelay 可以在按下停止热键后及时结束线程。
+                long remainingMillis = TimeUnit.NANOSECONDS.toMillis(
+                        comparisonTimeLimit - elapsed);
+                safeDelay(Math.min(2000L, remainingMillis));
+
+                // 延时结束后再次检查，达到上限就不再进行下一次截图和比较。
+                if (System.nanoTime() - comparisonStartedAt >= comparisonTimeLimit) {
+                    System.out.println("检测区域等待达到32秒上限，继续运行" + LocalDateTime.now());
+                    break;
+                }
+
+                BufferedImage currentImage = robot.createScreenCapture(monitoredArea);
+                if (imagesAreEqual(previousImage, currentImage)) {
+                    System.out.println("检测区域已稳定，继续运行" + LocalDateTime.now());
+                    break;
+                }
+
+                System.out.println("检测区域仍在变化，继续等待" + LocalDateTime.now());
                 previousImage = currentImage;
             }
         }
 
         robot.mouseMove(1024 / 2 , 768 / 2);
-        safeDelay(500);
+        safeDelay(200);
         ensureRunning();
         mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        safeDelay(50);
+        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
         safeDelay(300);
         ensureRunning();
 

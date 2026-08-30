@@ -6,6 +6,7 @@ package com.tankM6n;
 public class AppConfig {
     private String drinkWaterAfter = "";
     private String recoveryTime = "";
+    private String timePerHit = "32";
     private boolean dropInsteadDestroy;
     private String restType = "趴下";
     private String caffeineMg = "";
@@ -31,6 +32,14 @@ public class AppConfig {
 
     public void setRecoveryTime(String recoveryTime) {
         this.recoveryTime = recoveryTime;
+    }
+
+    public String getTimePerHit() {
+        return timePerHit;
+    }
+
+    public void setTimePerHit(String timePerHit) {
+        this.timePerHit = timePerHit;
     }
 
     public boolean isDropInsteadDestroy() {

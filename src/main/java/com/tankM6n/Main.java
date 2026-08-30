@@ -46,6 +46,7 @@ import java.util.concurrent.*;
 public class Main extends Application {
     private String drinkWaterAfter;    // 体力耗尽后多少下后喝水
     private String recoveryTime;       // 体力恢复时间（单位：秒）
+    private String timePerHit = "32";  // 砸一次箱子的时间（单位：秒）
     private boolean dropInsteadDestroy; // 是否丢下而不是摧毁（新增复选框状态）
     private String restType;           // 休息类型（新增下拉框值）
     private boolean enableAutoEat;     // 是否启用自动吃饭
@@ -75,7 +76,11 @@ public class Main extends Application {
 
     // 炼体策略下拉框，默认效率优先。
     private ComboBox<String> trainingEfficiencyComboBox;
-    private volatile String trainingEfficiency = "效率优先";
+    private volatile String trainingEfficiency = "敏捷优先";
+
+    // 做饭类型下拉框，当前只保存界面中的选择，默认烤玉米。
+    private ComboBox<String> cookingTypeComboBox;
+    private volatile String cookingType = "烤玉米";
 
     // ===================== 新增服务器重启 =====================
     private ComboBox<String> serverRestartComboBox; // 服务器重启时间下拉框
@@ -184,21 +189,27 @@ public class Main extends Application {
 
         root.getChildren().addAll(tip1, tip2 , tip3 , tip4 , tip5 , tip6 , tip7, tip8);
 
-        // 当前只保留仍参与训练逻辑的恢复时间输入框。
+        // 训练时长相关输入框。
 //        createInputGroup(root, "体力耗尽后多少下后喝水：", "", 20, 170, "drinkWaterAfter");
         createInputGroup(root, "体力恢复时间（单位：秒）：", "", 20, 145, "recoveryTime");
+        createInputGroup(root, "砸一次箱子的时间（秒）：", "", 20, 180, "timePerHit");
+
+        Label timePerHitTip = new Label("砸箱子时间默认32秒,出现砸坏箱子的情况时,适当缩短该值,无特殊情况保持默认32秒");
+        timePerHitTip.setLayoutX(20);
+        timePerHitTip.setLayoutY(215);
+        timePerHitTip.setStyle("-fx-text-fill: #b35a00;");
 
         // 添加休息类型下拉框
         Label restTypeLabel = new Label("休息类型：");
         restTypeLabel.setLayoutX(20);
-        restTypeLabel.setLayoutY(180);
+        restTypeLabel.setLayoutY(245);
 
         // 创建下拉框并添加选项
         restTypeComboBox = new ComboBox<>();
         ObservableList<String> restOptions = FXCollections.observableArrayList("坐下", "趴下");
         restTypeComboBox.setItems(restOptions);
         restTypeComboBox.setLayoutX(120);
-        restTypeComboBox.setLayoutY(180);
+        restTypeComboBox.setLayoutY(245);
         restTypeComboBox.setPrefWidth(120);
         restTypeComboBox.setValue("趴下"); // 设置默认值
 
@@ -210,7 +221,7 @@ public class Main extends Application {
         // 添加复选框（如果点击的是丢下而不是摧毁，把这个勾打上）
         dropCheckBox = new CheckBox("如果点击的是丢下而不是摧毁，把这个勾打上【失效】");
         dropCheckBox.setLayoutX(20);
-        dropCheckBox.setLayoutY(215);
+        dropCheckBox.setLayoutY(280);
         dropCheckBox.setSelected(dropInsteadDestroy);
         dropCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
             dropInsteadDestroy = newValue;
@@ -219,7 +230,7 @@ public class Main extends Application {
         // 添加咖啡因复选框
         caffeineCheckBox = new CheckBox("是否启用自动吃咖啡粉");
         caffeineCheckBox.setLayoutX(20);
-        caffeineCheckBox.setLayoutY(250);
+        caffeineCheckBox.setLayoutY(315);
         caffeineCheckBox.setSelected(enableAutoCaffeine);
         caffeineCheckBox.setDisable(true); // 初始状态下禁用
         caffeineCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
@@ -248,7 +259,7 @@ public class Main extends Application {
         // 添加自动吃饭复选框 - 在咖啡因控件后添加
         autoEatCheckBox = new CheckBox("是否启用自动吃饭");
         autoEatCheckBox.setLayoutX(220);
-        autoEatCheckBox.setLayoutY(250);
+        autoEatCheckBox.setLayoutY(315);
         autoEatCheckBox.setSelected(enableAutoEat);
         autoEatCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
             enableAutoEat = newValue;
@@ -257,7 +268,7 @@ public class Main extends Application {
         // ===================== 服务器重启时间 =====================
         Label serverRestartLabel = new Label("下一次服务器重启时间【24小时制】：");
         serverRestartLabel.setLayoutX(20);
-        serverRestartLabel.setLayoutY(285);
+        serverRestartLabel.setLayoutY(350);
 
         serverRestartComboBox = new ComboBox<>();
         ObservableList<String> hours = FXCollections.observableArrayList();
@@ -267,14 +278,14 @@ public class Main extends Application {
         }
         serverRestartComboBox.setItems(hours);
         serverRestartComboBox.setLayoutX(220);
-        serverRestartComboBox.setLayoutY(285);
+        serverRestartComboBox.setLayoutY(350);
         serverRestartComboBox.setPrefWidth(120);
         serverRestartComboBox.setValue(serverRestartTime);
         serverRestartComboBox.valueProperty().addListener((obs, o, n) -> serverRestartTime = n);
 
         Label serverRestartIntervalLabel = new Label("服务器重启间隔【小时】：");
         serverRestartIntervalLabel.setLayoutX(20);
-        serverRestartIntervalLabel.setLayoutY(315);
+        serverRestartIntervalLabel.setLayoutY(380);
 
         serverRestartIntervalComboBox = new ComboBox<>();
         ObservableList<String> intervals = FXCollections.observableArrayList();
@@ -284,7 +295,7 @@ public class Main extends Application {
         }
         serverRestartIntervalComboBox.setItems(intervals);
         serverRestartIntervalComboBox.setLayoutX(220);
-        serverRestartIntervalComboBox.setLayoutY(315);
+        serverRestartIntervalComboBox.setLayoutY(380);
         serverRestartIntervalComboBox.setPrefWidth(120);
         serverRestartIntervalComboBox.setValue(serverRestartInterval);
         serverRestartIntervalComboBox.valueProperty().addListener((obs, o, n) -> serverRestartInterval = n);
@@ -292,13 +303,13 @@ public class Main extends Application {
         // ===================== 炼体效率选择 =====================
         Label trainingEfficiencyLabel = new Label("选择炼体效率：");
         trainingEfficiencyLabel.setLayoutX(20);
-        trainingEfficiencyLabel.setLayoutY(345);
+        trainingEfficiencyLabel.setLayoutY(410);
 
         trainingEfficiencyComboBox = new ComboBox<>();
         trainingEfficiencyComboBox.setItems(FXCollections.observableArrayList(
                 "效率优先", "敏捷优先"));
         trainingEfficiencyComboBox.setLayoutX(220);
-        trainingEfficiencyComboBox.setLayoutY(345);
+        trainingEfficiencyComboBox.setLayoutY(410);
         trainingEfficiencyComboBox.setPrefWidth(120);
         trainingEfficiencyComboBox.setValue("效率优先");
         trainingEfficiencyComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
@@ -307,10 +318,28 @@ public class Main extends Application {
             }
         });
 
-        // ===================== 制作烤玉米数量 =====================
-        Label cornCookCountLabel = new Label("制作烤玉米个数：");
+        // ===================== 做饭类型 =====================
+        Label cookingTypeLabel = new Label("做饭类型：");
+        cookingTypeLabel.setLayoutX(20);
+        cookingTypeLabel.setLayoutY(445);
+
+        cookingTypeComboBox = new ComboBox<>();
+        cookingTypeComboBox.setItems(FXCollections.observableArrayList(
+                "烤玉米", "烤鱼"));
+        cookingTypeComboBox.setLayoutX(220);
+        cookingTypeComboBox.setLayoutY(445);
+        cookingTypeComboBox.setPrefWidth(120);
+        cookingTypeComboBox.setValue("烤玉米");
+        cookingTypeComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue != null) {
+                cookingType = newValue;
+            }
+        });
+
+        // ===================== 制作食物次数 =====================
+        Label cornCookCountLabel = new Label("制作食物次数：");
         cornCookCountLabel.setLayoutX(20);
-        cornCookCountLabel.setLayoutY(380);
+        cornCookCountLabel.setLayoutY(480);
 
         cornCookCountComboBox = new ComboBox<>();
         ObservableList<Integer> cornCookCountOptions = FXCollections.observableArrayList();
@@ -319,7 +348,7 @@ public class Main extends Application {
         }
         cornCookCountComboBox.setItems(cornCookCountOptions);
         cornCookCountComboBox.setLayoutX(220);
-        cornCookCountComboBox.setLayoutY(380);
+        cornCookCountComboBox.setLayoutY(480);
         cornCookCountComboBox.setPrefWidth(120);
         cornCookCountComboBox.setValue(1);
         cornCookCountComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
@@ -331,50 +360,51 @@ public class Main extends Application {
         // 添加编辑/保存按钮
         editSaveButton = new Button("编辑");
         editSaveButton.setLayoutX(20);
-        editSaveButton.setLayoutY(425);
+        editSaveButton.setLayoutY(525);
         editSaveButton.setPrefWidth(150);
         editSaveButton.setOnAction(event -> toggleEditMode());
 
         // 添加开始训练按钮
         Button startButton = new Button("开始训练");
         startButton.setLayoutX(180);
-        startButton.setLayoutY(425);
+        startButton.setLayoutY(525);
         startButton.setPrefWidth(150);
         startButton.setOnAction(event -> startTraining("default"));
 
         // 添加停止训练按钮
         Button stopButton = new Button("停止训练");
         stopButton.setLayoutX(340);
-        stopButton.setLayoutY(425);
+        stopButton.setLayoutY(525);
         stopButton.setPrefWidth(150);
         stopButton.setOnAction(event -> stopTrainingManually());
 
         Label trainingDurationLabel = new Label("已炼体时长：");
         trainingDurationLabel.setLayoutX(20);
-        trainingDurationLabel.setLayoutY(215);
+        trainingDurationLabel.setLayoutY(280);
 //        trainingDurationLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
 
         trainingDurationField = new TextField();
         trainingDurationField.setLayoutX(105);
-        trainingDurationField.setLayoutY(215);
+        trainingDurationField.setLayoutY(280);
         trainingDurationField.setPrefWidth(225);
         trainingDurationField.setEditable(false);
         trainingDurationField.setFocusTraversable(false);
         trainingDurationField.setStyle("-fx-font-weight: bold; -fx-alignment: center;");
         updateTrainingDurationDisplay();
 
-        root.getChildren().addAll(restTypeLabel, restTypeComboBox,
+        root.getChildren().addAll(timePerHitTip, restTypeLabel, restTypeComboBox,
 //                dropCheckBox,
                 caffeineCheckBox, autoEatCheckBox,
                 serverRestartLabel, serverRestartComboBox,
                 serverRestartIntervalLabel, serverRestartIntervalComboBox,
                 trainingEfficiencyLabel, trainingEfficiencyComboBox,
+                cookingTypeLabel, cookingTypeComboBox,
                 cornCookCountLabel, cornCookCountComboBox,
                 editSaveButton, startButton, stopButton,
                 trainingDurationLabel, trainingDurationField);
 
         // 设置场景和舞台
-        Scene scene = new Scene(root, 500, 480);
+        Scene scene = new Scene(root, 500, 580);
         primaryStage.setTitle("SCUM创可贴免费炼体器(作者：GorphynMars)");
         primaryStage.setScene(scene);
 
@@ -442,6 +472,9 @@ public class Main extends Application {
                 case "recoveryTime":
                     recoveryTime = newValue;
                     break;
+                case "timePerHit":
+                    timePerHit = newValue;
+                    break;
             }
         });
 
@@ -468,6 +501,7 @@ public class Main extends Application {
         // Codex生成：重启间隔只允许在编辑模式下修改。
         serverRestartIntervalComboBox.setDisable(!editable);
         trainingEfficiencyComboBox.setDisable(!editable);
+        cookingTypeComboBox.setDisable(!editable);
         cornCookCountComboBox.setDisable(!editable);
     }
 
@@ -478,6 +512,7 @@ public class Main extends Application {
         AppConfig config = configService.load();
         drinkWaterAfter = config.getDrinkWaterAfter();
         recoveryTime = config.getRecoveryTime();
+        timePerHit = config.getTimePerHit();
         dropInsteadDestroy = config.isDropInsteadDestroy();
         restType = config.getRestType();
         caffeineMg = config.getCaffeineMg();
@@ -500,6 +535,7 @@ public class Main extends Application {
         AppConfig config = new AppConfig();
         config.setDrinkWaterAfter(drinkWaterAfter);
         config.setRecoveryTime(recoveryTime);
+        config.setTimePerHit(timePerHit);
         config.setDropInsteadDestroy(dropInsteadDestroy);
         config.setRestType(restType);
         config.setEnableAutoEat(enableAutoEat);
@@ -521,6 +557,7 @@ public class Main extends Application {
         // 使用存储的输入框引用来设置值
 //        inputFields.get("drinkWaterAfter").setText(drinkWaterAfter != null ? drinkWaterAfter : "");
         inputFields.get("recoveryTime").setText(recoveryTime != null ? recoveryTime : "");
+        inputFields.get("timePerHit").setText(timePerHit != null ? timePerHit : "32");
 
         // 更新复选框状态
         if (dropCheckBox != null) {
@@ -588,6 +625,10 @@ public class Main extends Application {
             // 将字符串参数转换为double类型
             double drinkWaterAfterValue = Double.parseDouble(drinkWaterAfter);
             double recoveryTimeValue = Double.parseDouble(recoveryTime);
+            double timePerHitValue = Double.parseDouble(timePerHit);
+            if (!Double.isFinite(timePerHitValue) || timePerHitValue <= 0.0) {
+                throw new NumberFormatException("砸一次箱子的时间必须大于0秒");
+            }
 
             // 新增：处理咖啡因参数
             Double caffeineMgValue = 0.0;
@@ -606,6 +647,7 @@ public class Main extends Application {
             // 创建新的训练线程并传入参数（包括复选框状态和休息类型）
             trainingThread = new xiangzi(
                     recoveryTimeValue,
+                    timePerHitValue,
                     dropInsteadDestroy,  // 传递复选框状态作为mousePositionChange参数
                     restType,            // 传递休息类型参数
                     enableAutoCaffeine,  // 新增：是否启用自动吃咖啡粉
@@ -930,7 +972,7 @@ public class Main extends Application {
                 return;
             }
             if (matches != null && matches.size() > 0) {
-                cookCornThread currentCookThread = new cookCornThread(matches , "烤鱼");
+                cookCornThread currentCookThread = new cookCornThread(matches , cookingType);
                 cookCornThread = currentCookThread;
                 currentCookThread.start();
                 try {
