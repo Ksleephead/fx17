@@ -201,7 +201,7 @@ public class Main extends Application {
         createInputGroup(root, "体力恢复时间（单位：秒）：", "", 20, 170, "recoveryTime");
         createInputGroup(root, "砸一次箱子的时间（秒）：", "", 20, 205, "timePerHit");
 
-        Label timePerHitTip = new Label("砸箱子时间默认32秒,出现砸坏箱子的情况时,适当缩短该值,无特殊情况保持默认32秒");
+        Label timePerHitTip = new Label("砸箱子时间默认32秒,出现砸坏箱子或晕倒情况时,适当缩短该值,无特殊情况保持默认32秒");
         timePerHitTip.setLayoutX(20);
         timePerHitTip.setLayoutY(240);
         timePerHitTip.setStyle("-fx-text-fill: #b35a00;");
