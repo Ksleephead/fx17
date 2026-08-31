@@ -963,7 +963,7 @@ public class xiangzi extends Thread {
             safeDelay(500);
             ensureRunning();
             mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            safeDelay(6 * 1000);
+            safeDelay(8 * 1000);
             ensureRunning();
         }else{
             System.out.println("手套状态良好，不用修" + LocalDateTime.now());
@@ -981,7 +981,7 @@ public class xiangzi extends Thread {
                         arrowMatch.similarity(), arrowX, arrowY);
 
                 robot.mouseMove(arrowX, arrowY);
-                safeDelay(500);
+                safeDelay(1000);
                 robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
                 safeDelay(500);
                 robot.mouseMove(arrowX, 66);
