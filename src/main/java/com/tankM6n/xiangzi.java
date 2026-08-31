@@ -3,6 +3,10 @@
 
 package com.tankM6n;
 
+import com.tankM6n.nearby.ArrowDetectorConfig;
+import com.tankM6n.nearby.RegionTemplateDetector;
+import com.tankM6n.nearby.ScreenTemplateMatch;
+
 import java.awt.*;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -10,6 +14,7 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.concurrent.*;
@@ -35,6 +40,8 @@ public class xiangzi extends Thread {
 
     long start;
     Robot robot;
+    private ArrowDetectorConfig arrowDetectorConfig;
+    private RegionTemplateDetector arrowDetector;
 
     private ExecutorService executor;
     //是否需要强制休息
@@ -116,6 +123,26 @@ public class xiangzi extends Thread {
         int[] secondPixels = second.getRGB(
                 0, 0, second.getWidth(), second.getHeight(), null, 0, second.getWidth());
         return Arrays.equals(firstPixels, secondPixels);
+    }
+
+    /** 只在配置的竖向区域中识别 jiantou 模板，并返回相似度最高的命中。 */
+    private ScreenTemplateMatch detectArrowOnce() throws Exception {
+        if (arrowDetector == null) {
+            arrowDetectorConfig = ArrowDetectorConfig.load(
+                    Path.of("arrow-detector.properties"));
+            arrowDetector = new RegionTemplateDetector(
+                    arrowDetectorConfig.searchArea(),
+                    arrowDetectorConfig.templatePath(),
+                    arrowDetectorConfig.similarityThreshold());
+        }
+
+        ScreenTemplateMatch bestMatch = null;
+        for (ScreenTemplateMatch match : arrowDetector.detectOnce()) {
+            if (bestMatch == null || match.similarity() > bestMatch.similarity()) {
+                bestMatch = match;
+            }
+        }
+        return bestMatch;
     }
 
     private void releaseKeys() {
@@ -437,7 +464,7 @@ public class xiangzi extends Thread {
             //开局修手套
             standUp(i, robot);
             needRestLogic();
-            fixGloves(robot);
+            fixGloves(robot);//加上物品栏上移逻辑
             //吃东西
             eat(i);
             ensureRunning();
@@ -940,6 +967,32 @@ public class xiangzi extends Thread {
             ensureRunning();
         }else{
             System.out.println("手套状态良好，不用修" + LocalDateTime.now());
+        }
+        //物品栏上移
+        try {
+            ScreenTemplateMatch arrowMatch = detectArrowOnce();
+            if (arrowMatch == null) {
+                System.out.println("未识别到物品栏箭头，跳过物品栏上移");
+            } else {
+                int arrowX = arrowMatch.screenX() + arrowDetectorConfig.resultOffsetX();
+                int arrowY = arrowMatch.screenY() + arrowDetectorConfig.resultOffsetY();
+                System.out.printf(
+                        "ARROW -> similarity=%.3f x=%d y=%d%n",
+                        arrowMatch.similarity(), arrowX, arrowY);
+
+                robot.mouseMove(arrowX, arrowY);
+                safeDelay(500);
+                robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+                safeDelay(500);
+                robot.mouseMove(arrowX, 66);
+                safeDelay(500);
+                robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+                safeDelay(500);
+            }
+        } catch (InterruptedException e) {
+            throw e;
+        } catch (Exception e) {
+            System.err.println("识别物品栏箭头失败: " + e.getMessage());
         }
         tabSwitch();
     }
