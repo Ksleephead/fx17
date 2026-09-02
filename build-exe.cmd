@@ -98,6 +98,13 @@ if exist "nearby-item-detector.properties" (
   exit /b 1
 )
 
+if exist "arrow-detector.properties" (
+  copy /y "arrow-detector.properties" "target\%APP_NAME%\arrow-detector.properties"
+) else (
+  echo [ERROR] arrow-detector.properties not found
+  exit /b 1
+)
+
 echo === clean temporary runtime ===
 rmdir /s /q "%RUNTIME_DIR%" 2>nul
 
