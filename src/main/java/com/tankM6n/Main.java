@@ -213,12 +213,13 @@ public class Main extends Application {
 
         // 创建下拉框并添加选项
         restTypeComboBox = new ComboBox<>();
-        ObservableList<String> restOptions = FXCollections.observableArrayList("坐下", "趴下");
+//        ObservableList<String> restOptions = FXCollections.observableArrayList("坐下", "趴下");
+        ObservableList<String> restOptions = FXCollections.observableArrayList("坐下");
         restTypeComboBox.setItems(restOptions);
         restTypeComboBox.setLayoutX(120);
         restTypeComboBox.setLayoutY(270);
         restTypeComboBox.setPrefWidth(120);
-        restTypeComboBox.setValue("趴下"); // 设置默认值
+        restTypeComboBox.setValue("坐下"); // 设置默认值
 
         // 为下拉框添加事件处理
         restTypeComboBox.valueProperty().addListener((observable, oldValue, newValue) -> {

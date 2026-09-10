@@ -461,6 +461,7 @@ public class xiangzi extends Thread {
             if (!running) {
                 break;
             }
+            releaseKeys();
             //开局修手套
             standUp(i, robot);
             needRestLogic();
@@ -500,7 +501,6 @@ public class xiangzi extends Thread {
             } else {
                 recoveryTab(robot);
             }
-
         }
     }
 
@@ -935,6 +935,19 @@ public class xiangzi extends Thread {
             robot.keyRelease(KeyEvent.VK_8);
             safeDelay(5000);
             ensureRunning();
+            robot.keyPress(KeyEvent.VK_8);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_8);
+            safeDelay(5000);
+            ensureRunning();
+            robot.keyPress(KeyEvent.VK_3);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_3);
+            safeDelay(3000);
+            robot.keyPress(KeyEvent.VK_3);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_3);
+            safeDelay(3000);
 //            robot.keyPress(KeyEvent.VK_8);
 //            safeDelay(50);
 //            robot.keyRelease(KeyEvent.VK_8);
@@ -1199,16 +1212,17 @@ public class xiangzi extends Thread {
         safeDelay(900);
         ensureRunning();
         robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        safeDelay(50);
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
         safeDelay(900);
         robot.mouseMove(592, 488);
         safeDelay(900);
         ensureRunning();
         robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        safeDelay(50);
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
         safeDelay(900);
         robot.keyRelease(KeyEvent.VK_TAB);//松开tab
-        releaseKeys();
         safeDelay((long) (recoveryTime * 1000));
     }
 }
