@@ -28,6 +28,11 @@ public final class ConsoleLog {
     private ConsoleLog() {
     }
 
+    /** 输出一条带统一时间戳的业务日志。 */
+    public static void log(String message) {
+        System.out.println("[" + LocalDateTime.now().format(TIME_FORMAT) + "] " + message);
+    }
+
     public static synchronized void initialize() {
         if (initialized) {
             return;

@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.*;
 
 public class Main extends Application {
@@ -103,6 +104,10 @@ public class Main extends Application {
     // 主舞台引用
     private Stage mainStage;
 
+    // 用户主动开始训练前依次执行的校验；后续校验统一添加到此列表。
+    private List<TrainingStartCheck> trainingStartChecks = List.of();
+    private boolean trainingStartRequestInProgress;
+
     // 编辑/保存按钮引用
     private Button editSaveButton;
 
@@ -131,6 +136,11 @@ public class Main extends Application {
     @Override
     public void start(Stage primaryStage) {
         this.mainStage = primaryStage;
+        this.trainingStartChecks = List.of(
+                new WindowsScaleCheck(
+                        System.getProperty("os.name", ""),
+                        primaryStage::getOutputScaleX,
+                        primaryStage::getOutputScaleY));
 
         // 主面板
         Pane root = new Pane();
@@ -377,7 +387,7 @@ public class Main extends Application {
         startButton.setLayoutX(180);
         startButton.setLayoutY(550);
         startButton.setPrefWidth(150);
-        startButton.setOnAction(event -> startTraining("default"));
+        startButton.setOnAction(event -> requestTrainingStart("default"));
 
         // 添加停止训练按钮
         Button stopButton = new Button("停止训练");
@@ -616,6 +626,43 @@ public class Main extends Application {
     }
 
     /**
+     * 处理按钮或全局热键发起的训练请求，并依次执行训练前校验。
+     * 自动重连恢复训练不经过这里，避免无人操作时弹出确认窗口。
+     */
+    private void requestTrainingStart(String value) {
+        if (trainingStartRequestInProgress) {
+            return;
+        }
+
+        trainingStartRequestInProgress = true;
+        try {
+            for (TrainingStartCheck check : trainingStartChecks) {
+                Optional<TrainingStartWarning> warning = check.validate();
+                if (warning.isPresent() && !confirmContinueAfterWarning(warning.get())) {
+                    return;
+                }
+            }
+            startTraining(value);
+        } finally {
+            trainingStartRequestInProgress = false;
+        }
+    }
+
+    private boolean confirmContinueAfterWarning(TrainingStartWarning warning) {
+        ButtonType acknowledge = new ButtonType("确定", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType continueAnyway = new ButtonType("仍要继续", ButtonBar.ButtonData.OK_DONE);
+        Alert alert = new Alert(Alert.AlertType.WARNING, warning.content(), acknowledge, continueAnyway);
+        alert.setTitle(warning.title());
+        alert.setHeaderText(warning.header());
+        alert.initOwner(mainStage);
+        boolean shouldContinue = alert.showAndWait().filter(continueAnyway::equals).isPresent();
+        ConsoleLog.log(warning.header() + "：用户选择“"
+                + (shouldContinue ? "仍要继续" : "确定")
+                + "”，" + (shouldContinue ? "继续启动训练" : "取消本次启动"));
+        return shouldContinue;
+    }
+
+    /**
      * 开始训练线程
      */
     private void startTraining(String value) {
@@ -848,7 +895,7 @@ public class Main extends Application {
                     }
                     if (e.getKeyCode() == NativeKeyEvent.VC_UP || e.getKeyCode() == NativeKeyEvent.VC_PAGE_UP) {
                         System.out.println("pageUp游戏内开始");
-                        Platform.runLater(() -> startTraining("inGame"));
+                        Platform.runLater(() -> requestTrainingStart("inGame"));
                     }
                     if (e.getKeyCode() == NativeKeyEvent.VC_LEFT) {
                         System.out.println("左方向键执行一次附近物品识别+制作简易米饭");
