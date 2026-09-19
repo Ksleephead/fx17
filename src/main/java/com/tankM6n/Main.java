@@ -329,7 +329,7 @@ public class Main extends Application {
         trainingEfficiencyComboBox.setLayoutX(220);
         trainingEfficiencyComboBox.setLayoutY(435);
         trainingEfficiencyComboBox.setPrefWidth(120);
-        trainingEfficiencyComboBox.setValue("效率优先");
+        trainingEfficiencyComboBox.setValue("敏捷优先");
         trainingEfficiencyComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue != null) {
                 trainingEfficiency = newValue;
