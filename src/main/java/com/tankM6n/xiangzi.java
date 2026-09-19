@@ -1157,6 +1157,7 @@ public class xiangzi extends Thread {
             if (lastDestroyTime == 0){
                 getLastDestroyTime(robot , j);
             }else {
+                System.out.println("使用检测最后一次砸箱子时间" + lastDestroyTime + "/" + LocalDateTime.now());
                 safeDelay(lastDestroyTime * 1000);
             }
         }
