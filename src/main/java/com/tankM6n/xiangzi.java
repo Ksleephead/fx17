@@ -5,6 +5,7 @@ package com.tankM6n;
 
 import com.tankM6n.nearby.ArrowDetectorConfig;
 import com.tankM6n.nearby.RegionTemplateDetector;
+import com.tankM6n.nearby.RegionDetectorConfig;
 import com.tankM6n.nearby.ScreenTemplateMatch;
 
 import java.awt.*;
@@ -34,6 +35,8 @@ public class xiangzi extends Thread {
 
     private volatile boolean running;
     private boolean enableAutoEat;     // 是否启用自动吃饭
+    private int lastDestroyTime;     // 是否启用自动吃饭
+    private boolean shounldContinueDestroy = false;     // 是否进行最后一次砸箱子
 
     private boolean coffeeCheck = true;
     long eatCoffeeTime;
@@ -42,6 +45,10 @@ public class xiangzi extends Thread {
     Robot robot;
     private ArrowDetectorConfig arrowDetectorConfig;
     private RegionTemplateDetector arrowDetector;
+    private RegionDetectorConfig repairDetectorConfig;
+    private RegionTemplateDetector repairDetector;
+    private RegionDetectorConfig drinkOnceDetectorConfig;
+    private RegionTemplateDetector drinkOnceDetector;
 
     private ExecutorService executor;
     //是否需要强制休息
@@ -138,6 +145,46 @@ public class xiangzi extends Thread {
 
         ScreenTemplateMatch bestMatch = null;
         for (ScreenTemplateMatch match : arrowDetector.detectOnce()) {
+            if (bestMatch == null || match.similarity() > bestMatch.similarity()) {
+                bestMatch = match;
+            }
+        }
+        return bestMatch;
+    }
+
+    /** 在修理菜单区域识别一次 xiuli 模板，返回相似度最高的屏幕坐标。 */
+    private ScreenTemplateMatch detectRepairOnce() throws Exception {
+        if (repairDetector == null) {
+            repairDetectorConfig = RegionDetectorConfig.load(
+                    Path.of("nearby-item-detector.properties"), "xiuli");
+            repairDetector = new RegionTemplateDetector(
+                    repairDetectorConfig.searchArea(),
+                    repairDetectorConfig.templatePath(),
+                    repairDetectorConfig.similarityThreshold());
+        }
+
+        ScreenTemplateMatch bestMatch = null;
+        for (ScreenTemplateMatch match : repairDetector.detectOnce()) {
+            if (bestMatch == null || match.similarity() > bestMatch.similarity()) {
+                bestMatch = match;
+            }
+        }
+        return bestMatch;
+    }
+
+    /** 在喝水右键菜单中识别一次 drinkOnce 模板，返回相似度最高的屏幕坐标。 */
+    private ScreenTemplateMatch detectDrinkOnce() throws Exception {
+        if (drinkOnceDetector == null) {
+            drinkOnceDetectorConfig = RegionDetectorConfig.load(
+                    Path.of("nearby-item-detector.properties"), "drinkOnce");
+            drinkOnceDetector = new RegionTemplateDetector(
+                    drinkOnceDetectorConfig.searchArea(),
+                    drinkOnceDetectorConfig.templatePath(),
+                    drinkOnceDetectorConfig.similarityThreshold());
+        }
+
+        ScreenTemplateMatch bestMatch = null;
+        for (ScreenTemplateMatch match : drinkOnceDetector.detectOnce()) {
             if (bestMatch == null || match.similarity() > bestMatch.similarity()) {
                 bestMatch = match;
             }
@@ -464,16 +511,20 @@ public class xiangzi extends Thread {
             releaseKeys();
             //开局修手套
             standUp(i, robot);
-            needRestLogic();
             fixGloves(robot);//加上物品栏上移逻辑
             //吃东西
-            eat(i);
+            bodyCheckAndEat(i);
+            needRestLogic();
             ensureRunning();
             tabSwitch();
             safeDelay(500);
             //修鞋子
             repairShoes(i);
             for (int j = 0; j < 4 && running; j++) {
+                if (j == 3 && shounldContinueDestroy){
+                    System.out.println("检测到体力已经达到最大值,不再进行最后一次砸箱子" + LocalDateTime.now());
+                    break;
+                }
                 //开始摧毁箱子
                 coffeeCheckDomin rst = desitroy(robot, lastEdge , j);
                 lastEdge = rst.getLastEdge();
@@ -507,6 +558,15 @@ public class xiangzi extends Thread {
     private void needRestLogic() throws InterruptedException {
         //如果能量够、蛋白质够，但是水分没跟上就单独喝水
         if ("drinkWater".equals(needRest)){
+            safeDelay(2 * 1000);
+            robot.keyPress(KeyEvent.VK_3);
+            safeDelay(100);
+            robot.keyRelease(KeyEvent.VK_3);
+            safeDelay(3 * 1000);
+            robot.keyPress(KeyEvent.VK_3);
+            safeDelay(100);
+            robot.keyRelease(KeyEvent.VK_3);
+            safeDelay(3 * 1000);
             //打开tab
             tabSwitch();
             safeDelay(500);
@@ -521,6 +581,14 @@ public class xiangzi extends Thread {
                 safeDelay(50);
                 robot.keyRelease(KeyEvent.VK_1);
                 safeDelay(500);
+                for (int i = 0; i < 10; i++) {
+                    Color color = getPixelColor(370, 132);
+                    if (color.getRed() > 200 && color.getBlue() > 200 && color.getGreen() > 200){
+                        break;
+                    }else {
+                        moveItemDiv();
+                    }
+                }
                 //1、先找到箱子,打开箱子
 //                robot.mouseMove(400,80);
 //                //右键
@@ -556,6 +624,8 @@ public class xiangzi extends Thread {
                 //2、找到油桶，拿到手上
                 moveWater(0);
                 //3、喝3口
+                int drinkOnceX = -1;
+                int drinkOnceY = -1;
                 for (int i = 0 ; i < 3; i++) {
                     safeDelay(500);
                     robot.mouseMove(865,135);
@@ -565,7 +635,26 @@ public class xiangzi extends Thread {
                     safeDelay(50);
                     robot.mouseRelease(MouseEvent.BUTTON3_DOWN_MASK);
                     safeDelay(500);
-                    robot.mouseMove(890,269);
+                    try {
+                        ScreenTemplateMatch drinkOnceMatch = detectDrinkOnce();
+                        if (drinkOnceMatch == null) {
+                            System.out.println("未识别到喝一次菜单，停止喝水操作");
+                            break;
+                        }
+                        drinkOnceX = drinkOnceMatch.screenX()
+                                + drinkOnceDetectorConfig.resultOffsetX();
+                        drinkOnceY = drinkOnceMatch.screenY()
+                                + drinkOnceDetectorConfig.resultOffsetY();
+                        System.out.printf(
+                                "DRINK_ONCE -> similarity=%.3f x=%d y=%d%n",
+                                drinkOnceMatch.similarity(), drinkOnceX, drinkOnceY);
+                    } catch (InterruptedException e) {
+                        throw e;
+                    } catch (Exception e) {
+                        System.err.println("识别喝一次菜单失败: " + e.getMessage());
+                        break;
+                    }
+                    robot.mouseMove(drinkOnceX, drinkOnceY);
                     safeDelay(500);
                     robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
                     safeDelay(50);
@@ -668,6 +757,35 @@ public class xiangzi extends Thread {
         }
     }
 
+    private void moveItemDiv() throws InterruptedException {
+        //物品栏上移
+        try {
+            ScreenTemplateMatch arrowMatch = detectArrowOnce();
+            if (arrowMatch == null) {
+                System.out.println("未识别到物品栏箭头，跳过物品栏上移");
+            } else {
+                int arrowX = arrowMatch.screenX() + arrowDetectorConfig.resultOffsetX();
+                int arrowY = arrowMatch.screenY() + arrowDetectorConfig.resultOffsetY();
+                System.out.printf(
+                        "ARROW -> similarity=%.3f x=%d y=%d%n",
+                        arrowMatch.similarity(), arrowX, arrowY);
+
+                robot.mouseMove(arrowX, arrowY);
+                safeDelay(1000);
+                robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+                safeDelay(500);
+                robot.mouseMove(arrowX, 66);
+                safeDelay(500);
+                robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+                safeDelay(500);
+            }
+        } catch (InterruptedException e) {
+            throw e;
+        } catch (Exception e) {
+            System.err.println("识别物品栏箭头失败: " + e.getMessage());
+        }
+    }
+
     private void moveWater(int tryTimes) throws InterruptedException {
         int maxTryTimes = 20;
         if (tryTimes > maxTryTimes){
@@ -765,7 +883,7 @@ public class xiangzi extends Thread {
         robot.mouseRelease(button3DownMask);
     }
 
-    private void eat(int i) throws InterruptedException {
+    private void bodyCheckAndEat(int i) throws InterruptedException {
         safeDelay(1000);
         ensureRunning();
         tabSwitch();
@@ -822,7 +940,7 @@ public class xiangzi extends Thread {
         robot.keyPress(KeyEvent.VK_9);
         safeDelay(100);
         robot.keyRelease(KeyEvent.VK_9);
-        safeDelay(5 * 1000);
+        safeDelay(6 * 1000);
     }
 
     private void oldEat(boolean stomach, boolean intestine, boolean nengliang, boolean danBaizhi, boolean water) throws InterruptedException {
@@ -972,40 +1090,32 @@ public class xiangzi extends Thread {
             ensureRunning();
             mousePress(InputEvent.BUTTON3_DOWN_MASK);
             safeDelay(500);
-            robot.mouseMove(730, 721);
-            safeDelay(500);
-            ensureRunning();
-            mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            safeDelay(8 * 1000);
-            ensureRunning();
+            try {
+                ScreenTemplateMatch repairMatch = detectRepairOnce();
+                if (repairMatch == null) {
+                    System.out.println("未识别到修理菜单，跳过手套修理");
+                } else {
+                    int repairX = repairMatch.screenX()
+                            + repairDetectorConfig.resultOffsetX();
+                    int repairY = repairMatch.screenY()
+                            + repairDetectorConfig.resultOffsetY();
+                    System.out.printf(
+                            "XIULI -> similarity=%.3f x=%d y=%d%n",
+                            repairMatch.similarity(), repairX, repairY);
+                    robot.mouseMove(repairX, repairY);
+                    safeDelay(500);
+                    ensureRunning();
+                    mousePress(InputEvent.BUTTON1_DOWN_MASK);
+                    safeDelay(8 * 1000);
+                    ensureRunning();
+                }
+            } catch (InterruptedException e) {
+                throw e;
+            } catch (Exception e) {
+                System.err.println("识别修理菜单失败: " + e.getMessage());
+            }
         }else{
             System.out.println("手套状态良好，不用修" + LocalDateTime.now());
-        }
-        //物品栏上移
-        try {
-            ScreenTemplateMatch arrowMatch = detectArrowOnce();
-            if (arrowMatch == null) {
-                System.out.println("未识别到物品栏箭头，跳过物品栏上移");
-            } else {
-                int arrowX = arrowMatch.screenX() + arrowDetectorConfig.resultOffsetX();
-                int arrowY = arrowMatch.screenY() + arrowDetectorConfig.resultOffsetY();
-                System.out.printf(
-                        "ARROW -> similarity=%.3f x=%d y=%d%n",
-                        arrowMatch.similarity(), arrowX, arrowY);
-
-                robot.mouseMove(arrowX, arrowY);
-                safeDelay(1000);
-                robot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
-                safeDelay(500);
-                robot.mouseMove(arrowX, 66);
-                safeDelay(500);
-                robot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
-                safeDelay(500);
-            }
-        } catch (InterruptedException e) {
-            throw e;
-        } catch (Exception e) {
-            System.err.println("识别物品栏箭头失败: " + e.getMessage());
         }
         tabSwitch();
     }
@@ -1041,44 +1151,13 @@ public class xiangzi extends Thread {
 
         Future<Integer> coffeeEdge = checkCoffeeV2();//开启检测咖啡含量线程
         Future<Boolean> coffeeContains = coffeeStatus();
-        //第一次砸
-        if (j != 3){
+        if (j < 2){
             safeDelay(Math.max(1L, Math.round(timePerHit * 1000.0)));
         }else{
-            // 检测区域：(128,317) 到右下边界 (158,324)，尺寸为 30×7。
-            Rectangle monitoredArea = new Rectangle(128, 317, 30, 7);
-            BufferedImage previousImage = robot.createScreenCapture(monitoredArea);
-            long comparisonStartedAt = System.nanoTime();
-            long comparisonTimeLimit = TimeUnit.MILLISECONDS.toNanos(
-                    Math.max(1L, Math.round(timePerHit * 1000.0))
-            );
-            for (int i = 0; i < 20; i++) {
-                // 每轮开始先检查累计耗时，确保该等待循环不会无限阻塞。
-                long elapsed = System.nanoTime() - comparisonStartedAt;
-                if (elapsed >= comparisonTimeLimit) {
-                    System.out.println("检测区域等待达到上限，继续运行" + LocalDateTime.now());
-                    break;
-                }
-
-                // 每 2 秒检测一次；safeDelay 可以在按下停止热键后及时结束线程。
-                long remainingMillis = TimeUnit.NANOSECONDS.toMillis(
-                        comparisonTimeLimit - elapsed);
-                safeDelay(Math.min(2000L, remainingMillis));
-
-                // 延时结束后再次检查，达到上限就不再进行下一次截图和比较。
-                if (System.nanoTime() - comparisonStartedAt >= comparisonTimeLimit) {
-                    System.out.println("检测区域等待达到32秒上限，继续运行" + LocalDateTime.now());
-                    break;
-                }
-
-                BufferedImage currentImage = robot.createScreenCapture(monitoredArea);
-                if (imagesAreEqual(previousImage, currentImage)) {
-                    System.out.println("检测区域已稳定，继续运行" + LocalDateTime.now());
-                    break;
-                }
-
-                System.out.println("检测区域仍在变化，继续等待" + LocalDateTime.now());
-                previousImage = currentImage;
+            if (lastDestroyTime == 0){
+                getLastDestroyTime(robot , j);
+            }else {
+                safeDelay(lastDestroyTime * 1000);
             }
         }
 
@@ -1137,6 +1216,50 @@ public class xiangzi extends Thread {
             tabSwitch();
         }
         return coffeeCheckDomin;
+    }
+
+    private void getLastDestroyTime(Robot robot , int j) throws InterruptedException {
+        long start = System.currentTimeMillis();
+        // 检测区域：(128,317) 到右下边界 (158,324)，尺寸为 30×7。
+        Rectangle monitoredArea = new Rectangle(128, 317, 30, 7);
+        BufferedImage previousImage = robot.createScreenCapture(monitoredArea);
+        long comparisonStartedAt = System.nanoTime();
+        long comparisonTimeLimit = TimeUnit.MILLISECONDS.toNanos(
+                Math.max(1L, Math.round(timePerHit * 1000.0))
+        );
+        for (int i = 0; i < 20; i++) {
+            // 每轮开始先检查累计耗时，确保该等待循环不会无限阻塞。
+            long elapsed = System.nanoTime() - comparisonStartedAt;
+            if (elapsed >= comparisonTimeLimit) {
+                System.out.println("检测区域等待达到上限，继续运行" + LocalDateTime.now());
+                break;
+            }
+
+            // 每 2 秒检测一次；safeDelay 可以在按下停止热键后及时结束线程。
+            long remainingMillis = TimeUnit.NANOSECONDS.toMillis(
+                    comparisonTimeLimit - elapsed);
+            safeDelay(Math.min(2000L, remainingMillis));
+
+            // 延时结束后再次检查，达到上限就不再进行下一次截图和比较。
+            if (System.nanoTime() - comparisonStartedAt >= comparisonTimeLimit) {
+                System.out.println("检测区域等待达到32秒上限，停止运行" + LocalDateTime.now());
+                break;
+            }
+
+            BufferedImage currentImage = robot.createScreenCapture(monitoredArea);
+            if (imagesAreEqual(previousImage, currentImage)) {
+                System.out.println("检测区域已稳定，停止运行" + LocalDateTime.now());
+                lastDestroyTime = (int) (Math.floor(System.currentTimeMillis() - start) / 1000) - 2;
+                if (j != 3) {
+                    shounldContinueDestroy = true;
+                }
+                System.out.println("最后一次砸箱子时间已设置为" + lastDestroyTime + "/" + LocalDateTime.now());
+                break;
+            }
+
+            System.out.println("检测区域仍在变化，继续等待" + LocalDateTime.now());
+            previousImage = currentImage;
+        }
     }
 
     private void tabSwitch() throws InterruptedException {
