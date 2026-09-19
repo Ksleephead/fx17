@@ -17,7 +17,10 @@ import java.awt.image.DataBufferInt;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.*;
 
 
@@ -37,6 +40,7 @@ public class xiangzi extends Thread {
     private boolean enableAutoEat;     // 是否启用自动吃饭
     private int lastDestroyTime;     // 是否启用自动吃饭
     private boolean shounldContinueDestroy = false;     // 是否进行最后一次砸箱子
+    private boolean foodStroageIntoFridge;     // 食物是否存放于冰箱
 
     private boolean coffeeCheck = true;
     long eatCoffeeTime;
@@ -49,6 +53,11 @@ public class xiangzi extends Thread {
     private RegionTemplateDetector repairDetector;
     private RegionDetectorConfig drinkOnceDetectorConfig;
     private RegionTemplateDetector drinkOnceDetector;
+    private RegionDetectorConfig caseDetectorConfig;
+    private RegionTemplateDetector caseDetector;
+    private RegionDetectorConfig fridgeDetectorConfig;
+    private RegionTemplateDetector fridgeDetector;
+    private RegionDetectorConfig destroyDetectorConfig;
 
     private ExecutorService executor;
     //是否需要强制休息
@@ -56,7 +65,7 @@ public class xiangzi extends Thread {
 
     // 添加构造方法接收6个double参数
 
-    public xiangzi(double recoveryTime, double timePerHit, boolean dropInsteadDestroy, String restType, boolean enableAutoCaffeine, double caffeineMgValue, boolean enableAutoEat, String insideGameOrNot, String trainingEfficiency, ExecutorService executor) {
+    public xiangzi(double recoveryTime, double timePerHit, boolean dropInsteadDestroy, String restType, boolean enableAutoCaffeine, double caffeineMgValue, boolean enableAutoEat, boolean foodStroageIntoFridge, String insideGameOrNot, String trainingEfficiency, ExecutorService executor) {
         this.recoveryTime = recoveryTime;
         this.timePerHit = timePerHit;
         this.dropInsteadDestroy = dropInsteadDestroy;
@@ -64,6 +73,7 @@ public class xiangzi extends Thread {
         this.caffeineMgValue = caffeineMgValue;
         this.enableAutoCaffeine = enableAutoCaffeine;
         this.enableAutoEat = enableAutoEat;
+        this.foodStroageIntoFridge = foodStroageIntoFridge;
         this.insideGameOrNot = insideGameOrNot;
         this.trainingEfficiency = trainingEfficiency;
         this.executor = executor;
@@ -190,6 +200,82 @@ public class xiangzi extends Thread {
             }
         }
         return bestMatch;
+    }
+
+    /** 在储物区域识别一次箱子和冰箱，返回所有达到各自阈值的坐标和类型。 */
+    private List<TypedTemplateMatch> detectStorageItemsOnce() throws Exception {
+        if (caseDetector == null || fridgeDetector == null) {
+            Path configPath = Path.of("nearby-item-detector.properties");
+            caseDetectorConfig = RegionDetectorConfig.load(configPath, "case");
+            fridgeDetectorConfig = RegionDetectorConfig.load(configPath, "fridge");
+            caseDetector = new RegionTemplateDetector(
+                    caseDetectorConfig.searchArea(),
+                    caseDetectorConfig.templatePath(),
+                    caseDetectorConfig.similarityThreshold());
+            fridgeDetector = new RegionTemplateDetector(
+                    fridgeDetectorConfig.searchArea(),
+                    fridgeDetectorConfig.templatePath(),
+                    fridgeDetectorConfig.similarityThreshold());
+        }
+
+        List<TypedTemplateMatch> matches = new ArrayList<>();
+        matches.addAll(typedMatches("case", caseDetector, caseDetectorConfig));
+        matches.addAll(typedMatches("fridge", fridgeDetector, fridgeDetectorConfig));
+        return List.copyOf(matches);
+    }
+
+    private List<TypedTemplateMatch> typedMatches(
+            String type,
+            RegionTemplateDetector detector,
+            RegionDetectorConfig config) {
+        List<TypedTemplateMatch> matches = new ArrayList<>();
+        for (ScreenTemplateMatch match : detector.detectOnce()) {
+            matches.add(new TypedTemplateMatch(
+                    type,
+                    match.similarity(),
+                    match.screenX() + config.resultOffsetX(),
+                    match.screenY() + config.resultOffsetY()));
+        }
+        return matches;
+    }
+
+    /** 以储物对象坐标为左上角，在动态区域中识别一次 destroy 模板。 */
+    private ScreenTemplateMatch detectDestroyOnce(int screenX, int screenY) throws Exception {
+        if (destroyDetectorConfig == null) {
+            destroyDetectorConfig = RegionDetectorConfig.load(
+                    Path.of("nearby-item-detector.properties"), "destroy");
+        }
+
+        Rectangle searchArea = new Rectangle(
+                screenX + destroyDetectorConfig.searchX(),
+                screenY + destroyDetectorConfig.searchY(),
+                destroyDetectorConfig.searchWidth(),
+                destroyDetectorConfig.searchHeight());
+        RegionTemplateDetector detector = new RegionTemplateDetector(
+                searchArea,
+                destroyDetectorConfig.templatePath(),
+                destroyDetectorConfig.similarityThreshold());
+
+        ScreenTemplateMatch bestMatch = null;
+        for (ScreenTemplateMatch match : detector.detectOnce()) {
+            if (bestMatch == null || match.similarity() > bestMatch.similarity()) {
+                bestMatch = match;
+            }
+        }
+        if (bestMatch == null) {
+            return null;
+        }
+        return new ScreenTemplateMatch(
+                bestMatch.similarity(),
+                bestMatch.screenX() + destroyDetectorConfig.resultOffsetX(),
+                bestMatch.screenY() + destroyDetectorConfig.resultOffsetY());
+    }
+
+    private record TypedTemplateMatch(
+            String type,
+            double similarity,
+            int screenX,
+            int screenY) {
     }
 
     private void releaseKeys() {
@@ -526,7 +612,7 @@ public class xiangzi extends Thread {
                     break;
                 }
                 //开始摧毁箱子
-                coffeeCheckDomin rst = desitroy(robot, lastEdge , j);
+                coffeeCheckDomin rst = destroy(robot, lastEdge , j);
                 lastEdge = rst.getLastEdge();
                 if (rst.getJ() != 0){
                     //一次大循环只吃一次
@@ -581,14 +667,7 @@ public class xiangzi extends Thread {
                 safeDelay(50);
                 robot.keyRelease(KeyEvent.VK_1);
                 safeDelay(500);
-                for (int i = 0; i < 10; i++) {
-                    Color color = getPixelColor(370, 132);
-                    if (color.getRed() > 200 && color.getBlue() > 200 && color.getGreen() > 200){
-                        break;
-                    }else {
-                        moveItemDiv();
-                    }
-                }
+                itemPosisionCheck();
                 //1、先找到箱子,打开箱子
 //                robot.mouseMove(400,80);
 //                //右键
@@ -754,6 +833,17 @@ public class xiangzi extends Thread {
             }
 
             System.out.println("被唤醒，定时检测已关闭");
+        }
+    }
+
+    private void itemPosisionCheck() throws InterruptedException {
+        for (int i = 0; i < 10; i++) {
+            Color color = getPixelColor(370, 132);
+            if (color.getRed() > 200 && color.getBlue() > 200 && color.getGreen() > 200){
+                break;
+            }else {
+                moveItemDiv();
+            }
         }
     }
 
@@ -1120,7 +1210,7 @@ public class xiangzi extends Thread {
         tabSwitch();
     }
 
-    private coffeeCheckDomin desitroy(Robot robot , int lastEdge , int j) throws ExecutionException, InterruptedException, IOException, AWTException {
+    private coffeeCheckDomin destroy(Robot robot , int lastEdge , int j) throws ExecutionException, InterruptedException, IOException, AWTException {
         coffeeCheckDomin coffeeCheckDomin = new coffeeCheckDomin();
         coffeeCheckDomin.setJ(0);
         ensureRunning();
@@ -1129,13 +1219,30 @@ public class xiangzi extends Thread {
         robot.keyRelease(KeyEvent.VK_1);
 
         safeDelay(500);
-        robot.mouseMove(380, 100);
+        TypedTemplateMatch storageItemPosition = null;
+        if (foodStroageIntoFridge){
+            Optional<TypedTemplateMatch> postion = findCaseOrFridge("case");
+            if (postion.isPresent()) {
+                storageItemPosition = postion.get();
+                robot.mouseMove(
+                        storageItemPosition.screenX(),
+                        storageItemPosition.screenY());
+            }
+        }else {
+            robot.mouseMove(380, 100);//箱子位置
+        }
         safeDelay(500);
         ensureRunning();
         mousePress(InputEvent.BUTTON3_DOWN_MASK);
         safeDelay(500);
-        if (dropInsteadDestroy) {
-            robot.mouseMove(390, 190);
+
+        if (foodStroageIntoFridge) {
+            ScreenTemplateMatch destroyMatch = findDestroyButton(storageItemPosition);
+            if (destroyMatch != null) {
+                robot.mouseMove(destroyMatch.screenX(), destroyMatch.screenY());
+            }else {
+                robot.mouseMove(390, 195);
+            }
         } else {
             robot.mouseMove(390, 195);
         }
@@ -1217,6 +1324,58 @@ public class xiangzi extends Thread {
             tabSwitch();
         }
         return coffeeCheckDomin;
+    }
+
+    private ScreenTemplateMatch findDestroyButton(TypedTemplateMatch storageItemPosition) throws InterruptedException {
+        ScreenTemplateMatch destroyMatch = null;
+        if (storageItemPosition != null) {
+            try {
+                destroyMatch = detectDestroyOnce(
+                        storageItemPosition.screenX(),
+                        storageItemPosition.screenY());
+                if (destroyMatch == null) {
+                    System.out.println("未识别到摧毁菜单");
+                } else {
+                    System.out.printf(
+                            "DESTROY -> similarity=%.3f x=%d y=%d%n",
+                            destroyMatch.similarity(),
+                            destroyMatch.screenX(),
+                            destroyMatch.screenY());
+                }
+            } catch (InterruptedException e) {
+                throw e;
+            } catch (Exception e) {
+                System.err.println("识别摧毁菜单失败: " + e.getMessage());
+            }
+        }
+        return destroyMatch;
+    }
+
+    private Optional<TypedTemplateMatch> findCaseOrFridge(String type) throws InterruptedException {
+        Optional<TypedTemplateMatch> optionalTypedTemplateMatch = null;
+        //执行搜索箱子位置
+        itemPosisionCheck();
+        try {
+            List<TypedTemplateMatch> storageItemMatches = detectStorageItemsOnce();
+            if (storageItemMatches.isEmpty()) {
+                System.out.println("未识别到满足匹配度要求的箱子或冰箱");
+            }
+            for (TypedTemplateMatch storageItemMatch : storageItemMatches) {
+                System.out.printf(
+                        "STORAGE_ITEM -> type=%s similarity=%.3f x=%d y=%d%n",
+                        storageItemMatch.type(),
+                        storageItemMatch.similarity(),
+                        storageItemMatch.screenX(),
+                        storageItemMatch.screenY());
+            }
+            optionalTypedTemplateMatch = storageItemMatches.stream().filter(s -> type.equals(s.type)).findFirst();
+
+        } catch (InterruptedException e) {
+            throw e;
+        } catch (Exception e) {
+            System.err.println("识别箱子或冰箱失败: " + e.getMessage());
+        }
+        return optionalTypedTemplateMatch;
     }
 
     private void getLastDestroyTime(Robot robot , int j) throws InterruptedException {
