@@ -1263,7 +1263,9 @@ public class xiangzi extends Thread {
         }else{
             if (lastDestroyTime == 0){
                 getLastDestroyTime(robot , j);
-            }else {
+            }else if (j == 2){
+                getLastDestroyTime(robot , j);
+            }else if (j >= 3){
                 System.out.println("使用检测最后一次砸箱子时间" + lastDestroyTime + "/" + LocalDateTime.now());
                 safeDelay(lastDestroyTime * 1000);
             }
@@ -1409,7 +1411,9 @@ public class xiangzi extends Thread {
             BufferedImage currentImage = robot.createScreenCapture(monitoredArea);
             if (imagesAreEqual(previousImage, currentImage)) {
                 System.out.println("检测区域已稳定，停止运行" + LocalDateTime.now());
-                lastDestroyTime = (int) (Math.floor(System.currentTimeMillis() - start) / 1000) - 2;
+                if (lastDestroyTime != 0) {
+                    lastDestroyTime = (int) (Math.floor(System.currentTimeMillis() - start) / 1000) - 2;
+                }
                 if (j != 3) {
                     shounldContinueDestroy = true;
                 }
