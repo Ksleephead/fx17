@@ -48,7 +48,7 @@ rmdir /s /q "target\%APP_NAME%" 2>nul
 echo === jlink ===
 "%JDKHOME%\bin\jlink" ^
   --module-path "%JDKHOME%\jmods;%JAVAFX_HOME%" ^
-  --add-modules java.base,java.desktop,java.logging,java.net.http,javafx.controls,javafx.media ^
+  --add-modules java.base,java.desktop,java.logging,java.net.http,jdk.crypto.ec,javafx.controls,javafx.media ^
   --strip-debug ^
   --compress=2 ^
   --no-header-files ^
