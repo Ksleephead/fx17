@@ -3,11 +3,11 @@
 
 package com.tankM6n;
 
-import com.tankM6n.nearby.*;
-import com.github.kwhat.jnativehook.GlobalScreen;
-import com.github.kwhat.jnativehook.NativeHookException;
-import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
-import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
+import com.tankM6n.cooking.CookingService;
+import com.tankM6n.hotkey.GlobalHotkeyService;
+import com.tankM6n.restart.RestartScheduler;
+import com.tankM6n.training.TrainingService;
+import com.tankM6n.training.TrainingSettings;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
@@ -29,20 +29,12 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 
-import java.awt.*;
-import java.awt.event.InputEvent;
-import java.awt.event.KeyEvent;
-import java.awt.event.MouseEvent;
 import java.net.URL;
-import java.nio.file.Path;
-import java.time.LocalTime;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.*;
+import java.util.concurrent.TimeUnit;
 
 public class Main extends Application {
     private String drinkWaterAfter;    // 体力耗尽后多少下后喝水
@@ -55,9 +47,6 @@ public class Main extends Application {
     private boolean foodStroageIntoFridge = true; // 是否启用冰箱存放食物，默认启用
     private ComboBox<String> foodStorageComboBox;
 
-    // ===== NativeHook 生命周期控制 =====
-    private static volatile boolean nativeHookRegistered = false;
-    private static final Object NATIVE_HOOK_LOCK = new Object();
     // 新增咖啡因相关成员变量
     private String caffeineMg;          // 当前已吸收咖啡因（毫克）
     private boolean enableAutoCaffeine; // 是否启用自动吃咖啡粉
@@ -96,13 +85,7 @@ public class Main extends Application {
     private ComboBox<Integer> cornCookCountComboBox;
     private volatile int cornCookCount = 1;
 
-    private volatile ScheduledExecutorService restartScheduler;
-    // Codex生成：保存唯一的重启检查任务，避免重连后重复创建定时任务。
-    private volatile ScheduledFuture<?> restartCheckTask;
-    private volatile ScheduledFuture<?> restartResumeTask;
-    private volatile boolean restartSchedulingEnabled;
-    private volatile long restartSchedulerGeneration;
-    private int restartDelayMinutes = 2; // 重连后给电脑进入服务器的时间
+    private RestartScheduler restartScheduler;
     // 主舞台引用
     private Stage mainStage;
 
@@ -113,17 +96,9 @@ public class Main extends Application {
     // 编辑/保存按钮引用
     private Button editSaveButton;
 
-    // 训练线程
-    private volatile xiangzi trainingThread;
-
-    // 附近物品识别器；实例复用，避免重复读取和处理模板。
-    private NearbyItemDetector nearbyItemDetector;
-
-    // 接收检测结果并执行后续 Robot 操作的独立线程。
-//    private volatile NearbyItemRobotThread nearbyItemRobotThread;
-    private volatile cookCornThread cookCornThread;
-    // 控制多轮烤玉米的外层线程；与单轮 cookCornThread 分开，便于停止整个 cook()。
-    private volatile Thread cookTaskThread;
+    private final TrainingService trainingService = new TrainingService();
+    private final CookingService cookingService = new CookingService();
+    private GlobalHotkeyService hotkeyService;
 
     // 累计炼体时长。运行期间使用单调时钟，避免系统时间调整影响计时。
     private long accumulatedTrainingMillis;
@@ -134,10 +109,20 @@ public class Main extends Application {
     // Retain the JavaFX player while a short notification is playing.
     private MediaPlayer notificationPlayer;
 
-    private ExecutorService service;
     @Override
     public void start(Stage primaryStage) {
         this.mainStage = primaryStage;
+        this.restartScheduler = new RestartScheduler(
+                () -> serverRestartTime,
+                this::stopTraining,
+                () -> startTraining("restart"),
+                this::advanceServerRestartTime,
+                Platform::runLater,
+                2);
+        this.hotkeyService = new GlobalHotkeyService(
+                this::handleGlobalStop,
+                () -> Platform.runLater(() -> requestTrainingStart("inGame")),
+                () -> cookingService.start(cornCookCount, cookingType));
         this.trainingStartChecks = List.of(
                 new WindowsScaleCheck(
                         System.getProperty("os.name", ""),
@@ -456,7 +441,7 @@ public class Main extends Application {
         primaryStage.setOnCloseRequest(this::handleWindowClose);
 
         primaryStage.show();
-        ensureNativeHookRegistered();
+        hotkeyService.start();
     }
 
     /**
@@ -642,12 +627,25 @@ public class Main extends Application {
      * 窗口关闭事件处理
      */
     private void handleWindowClose(WindowEvent event) {
-        stopCook();
+        cookingService.stop();
         stopTraining(); // 确保线程停止
-        stopNearbyItemRobotThread();
-        unregisterNativeHook();
+        hotkeyService.close();
         saveConfig();
-        shutdownRestartScheduler();
+        restartScheduler.stop();
+        if (trainingDurationTimeline != null) {
+            trainingDurationTimeline.stop();
+        }
+        if (notificationPlayer != null) {
+            notificationPlayer.stop();
+            notificationPlayer.dispose();
+            notificationPlayer = null;
+        }
+    }
+
+    private void handleGlobalStop() {
+        cookingService.stop();
+        restartScheduler.stop();
+        Platform.runLater(this::stopTraining);
     }
 
     /**
@@ -721,30 +719,22 @@ public class Main extends Application {
             }else {
                 enableAutoCaffeine = false;
             }
-            if (service == null || service.isShutdown()) {
-                service = Executors.newSingleThreadExecutor();
-            }
-            // 创建新的训练线程并传入参数（包括复选框状态和休息类型）
-            trainingThread = new xiangzi(
+            TrainingSettings settings = new TrainingSettings(
                     recoveryTimeValue,
                     timePerHitValue,
-                    dropInsteadDestroy,  // 传递复选框状态作为mousePositionChange参数
-                    restType,            // 传递休息类型参数
-                    enableAutoCaffeine,  // 新增：是否启用自动吃咖啡粉
-                    caffeineMgValue,      // 新增：当前已吸收咖啡因（毫克）
-                    enableAutoEat,      // 新增：传递自动吃饭参数
-                    foodStroageIntoFridge, // 是否启用冰箱存放食物
-                    value,              //是否需要切屏
-                    trainingEfficiency, // 炼体策略：效率优先或敏捷优先
-                    service
-            );
+                    dropInsteadDestroy,
+                    restType,
+                    enableAutoCaffeine,
+                    caffeineMgValue,
+                    enableAutoEat,
+                    foodStroageIntoFridge,
+                    trainingEfficiency);
 
-            // 启动线程
-            trainingThread.start();
+            trainingService.start(settings, value);
             beginTrainingDuration();
             playNotificationSound("/audio/start.mp3");
 
-            scheduleRestartTask();
+            restartScheduler.start();
         } catch (NumberFormatException e) {
             // 处理转换错误
             System.err.println("参数转换错误: " + e.getMessage());
@@ -756,19 +746,9 @@ public class Main extends Application {
      */
     private synchronized void stopTraining() {
         boolean wasTiming = trainingStartedAtNanos >= 0L;
-        if (trainingThread != null) {
-            trainingThread.setRunning();
-            trainingThread.interrupt();
-            trainingThread = null;
-        }
-
-        if (service != null) {
-            service.shutdownNow();
-            service = null;
-        }
-        if (cookCornThread != null){
-            cookCornThread.interrupt();
-        }
+        trainingService.stop();
+        // 保留旧行为：停止训练也会停止当前单轮做饭，但不主动结束外层多轮控制器。
+        cookingService.stopCurrentWorker();
 
         if (wasTiming) {
             finishTrainingDuration();
@@ -779,7 +759,7 @@ public class Main extends Application {
 
     /** 用户主动停止时，同时取消服务器重启检查及尚未执行的自动恢复任务。 */
     private void stopTrainingManually() {
-        shutdownRestartScheduler();
+        restartScheduler.stop();
         stopTraining();
     }
 
@@ -851,8 +831,7 @@ public class Main extends Application {
 
     private void startTrainingDurationDisplayTimer() {
         trainingDurationTimeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
-            xiangzi currentThread = trainingThread;
-            if (trainingStartedAtNanos >= 0L && (currentThread == null || !currentThread.isAlive())) {
+            if (trainingStartedAtNanos >= 0L && !trainingService.isRunning()) {
                 stopTraining();
             } else {
                 updateTrainingDurationDisplay();
@@ -878,388 +857,8 @@ public class Main extends Application {
         trainingDurationField.setText(String.format("%d小时%02d分钟%02d秒", hours, minutes, seconds));
     }
 
-    private void unregisterNativeHook() {
-        synchronized (NATIVE_HOOK_LOCK) {
-            if (nativeHookRegistered) {
-                try {
-                    GlobalScreen.unregisterNativeHook();
-                } catch (Exception e) {
-                    System.err.println("卸载 NativeHook 失败: " + e.getMessage());
-                } finally {
-                    nativeHookRegistered = false;
-                }
-            }
-        }
-    }
-
-    private void ensureNativeHookRegistered() {
-        synchronized (NATIVE_HOOK_LOCK) {
-            if (nativeHookRegistered) {
-                return;
-            }
-
-            try {
-                GlobalScreen.registerNativeHook();
-                nativeHookRegistered = true;
-            } catch (NativeHookException e) {
-                System.err.println("NativeHook 注册失败: " + e.getMessage());
-                return;
-            }
-
-            GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
-                @Override
-                public void nativeKeyPressed(NativeKeyEvent e) {
-                    if (e.getKeyCode() == NativeKeyEvent.VC_DOWN || e.getKeyCode() == NativeKeyEvent.VC_PAGE_DOWN) {
-                        System.out.println("停止按钮生效");
-                        // 直接从热键线程发出停止信号，不能等待 JavaFX UI 线程处理。
-                        stopCook();
-                        shutdownRestartScheduler();
-                        Platform.runLater(() -> {
-                            stopTraining();
-                            stopNearbyItemRobotThread();
-                        });
-                    }
-                    if (e.getKeyCode() == NativeKeyEvent.VC_UP || e.getKeyCode() == NativeKeyEvent.VC_PAGE_UP) {
-                        System.out.println("pageUp游戏内开始");
-                        Platform.runLater(() -> requestTrainingStart("inGame"));
-                    }
-                    if (e.getKeyCode() == NativeKeyEvent.VC_LEFT) {
-                        System.out.println("左方向键执行一次附近物品识别+制作简易米饭");
-                        startCook();
-                    }
-                }
 
 
-                @Override public void nativeKeyReleased(NativeKeyEvent e) {}
-                @Override public void nativeKeyTyped(NativeKeyEvent e) {}
-            });
-        }
-    }
-
-    /** 在独立线程中执行多轮烤玉米，避免 join() 阻塞 JavaFX UI 线程。 */
-    private synchronized void startCook() {
-        if (cookTaskThread != null && cookTaskThread.isAlive()) {
-            System.out.println("烤玉米任务正在运行");
-            return;
-        }
-
-        Thread task = new Thread(() -> {
-            try {
-                cook();
-            } finally {
-                synchronized (Main.this) {
-                    if (cookTaskThread == Thread.currentThread()) {
-                        cookTaskThread = null;
-                    }
-                }
-            }
-        }, "scum-cook-controller");
-        cookTaskThread = task;
-        task.start();
-    }
-
-    /** 同时停止 cook() 外层循环和当前正在执行的单轮 Robot 线程。 */
-    private void stopCook() {
-        Thread task = cookTaskThread;
-        if (task != null) {
-            task.interrupt();
-        }
-
-        cookCornThread currentCookThread = cookCornThread;
-        if (currentCookThread != null) {
-            currentCookThread.requestStop();
-        }
-    }
-    private void ensureRunning() throws InterruptedException {
-        if (Thread.currentThread().isInterrupted()) {
-            throw new InterruptedException("training stopped");
-        }
-    }
-    private void safeDelay(long millis) throws InterruptedException {
-        long end = System.currentTimeMillis() + Math.max(0, millis);
-        while (System.currentTimeMillis() < end) {
-            ensureRunning();
-            Thread.sleep(Math.min(100, end - System.currentTimeMillis()));
-        }
-        ensureRunning();
-    }
-
-    private void cook(){
-
-
-        try {
-            Robot robot = new Robot();
-            //打开tab
-            robot.keyPress(KeyEvent.VK_TAB);
-            safeDelay(50);
-            robot.keyRelease(KeyEvent.VK_TAB);
-            safeDelay(500);
-            //打开1面板
-            robot.keyPress(KeyEvent.VK_1);
-            safeDelay(50);
-            robot.keyRelease(KeyEvent.VK_1);
-            safeDelay(500);
-            Color infoColor = robot.getPixelColor(330, 58);
-            if (infoColor.getRed() > 180){
-                robot.mouseMove(330, 58);
-                safeDelay(200);
-                robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-                safeDelay(50);
-                robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
-                safeDelay(500);
-            }
-            //打开2面板
-            robot.keyPress(KeyEvent.VK_2);
-            safeDelay(50);
-            robot.keyRelease(KeyEvent.VK_2);
-            safeDelay(300);
-            robot.mouseMove(965,24);
-            safeDelay(300);
-            robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
-            safeDelay(50);
-            robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-
-//        //做米饭的线程
-//        for (int i = 0 ; i < cornCookCount && !Thread.currentThread().isInterrupted(); i++) {
-//            System.out.println(i + "    CookCount    " + cornCookCount);
-//            List<ItemMatch> matches = detectNearbyItemsOnce();
-//            if (Thread.currentThread().isInterrupted()) {
-//                return;
-//            }
-//            if (matches != null && matches.size() > 0) {
-//                nearbyItemRobotThread = new NearbyItemRobotThread(matches);
-//                nearbyItemRobotThread.start();
-//                try {
-//                    nearbyItemRobotThread.join();
-//                } catch (InterruptedException e) {
-//                    nearbyItemRobotThread.requestStop();
-//                    Thread.currentThread().interrupt();
-//                    return;
-//                } finally {
-//                    nearbyItemRobotThread = null;
-//                }
-//            }
-//        }
-
-        //做烤玉米线程
-        for (int i = 0 ; i < cornCookCount && !Thread.currentThread().isInterrupted(); i++) {
-            System.out.println(i + "    cornCookCount    " + cornCookCount);
-            List<ItemMatch> matches = detectNearbyItemsOnce();
-            if (Thread.currentThread().isInterrupted()) {
-                return;
-            }
-            if (matches != null && matches.size() > 0) {
-                cookCornThread currentCookThread = new cookCornThread(matches , cookingType);
-                cookCornThread = currentCookThread;
-                currentCookThread.start();
-                try {
-                    currentCookThread.join();
-                } catch (InterruptedException e) {
-                    currentCookThread.requestStop();
-                    Thread.currentThread().interrupt();
-                    return;
-                } finally {
-                    if (cookCornThread == currentCookThread) {
-                        cookCornThread = null;
-                    }
-                }
-            }
-        }
-    }
-    private synchronized List<ItemMatch> detectNearbyItemsOnce() {
-        try {
-            // 第一次按热键时加载配置和模板，后续按键复用同一个检测器实例。
-            if (nearbyItemDetector == null) {
-                NearbyItemDetectorConfig config = NearbyItemDetectorConfig.load(
-                        Path.of("nearby-item-detector.properties"));
-                nearbyItemDetector = new NearbyItemDetector(config);
-            }
-            // 详细结果同时包含最终匹配集合和每个槽位的所有模板分数。
-            DetectionResult result =
-                    nearbyItemDetector.detectDetailedOnce();
-            List<ItemMatch> matches = result.matches();
-            EnumSet<ItemType> detectedTypes = EnumSet.noneOf(ItemType.class);
-
-            // 每个槽位只打印一行，展示所有已知物品的相似度。
-            for (SlotSimilarity slot : result.slotSimilarities()) {
-                if (slot.detectedType() != null) {
-                    detectedTypes.add(slot.detectedType());
-                }
-                System.out.printf(
-                        Locale.ROOT,
-                        "SLOT -> row=%d col=%d x=%d y=%d "
-                                + "panSimilarity=%.3f stoneFireSimilarity=%.3f "
-                                + "riceSimilarity=%.3f waterSimilarity=%.3f "
-                                + "cornSimilarity=%.3f fishSimilarity=%.3f detected=%s%n",
-                        slot.row(), slot.col(), slot.screenX(), slot.screenY(),
-                        slot.similarity(ItemType.PAN),
-                        slot.similarity(ItemType.STONE_FIRE),
-                        slot.similarity(ItemType.RICE),
-                        slot.similarity(ItemType.WATER),
-                        slot.similarity(ItemType.CORN),
-                        slot.similarity(ItemType.FISH),
-                        slot.detectedType() == null ? "NONE" : slot.detectedType());
-            }
-
-            // 每种未识别到的物品都单独打印，避免无法判断是漏打印还是未匹配。
-            for (ItemType type : ItemType.values()) {
-                if (!detectedTypes.contains(type)) {
-                    System.out.printf("%s -> NOT_DETECTED%n", type);
-                }
-            }
-
-            // 一轮识别结束后，把所有物品结果传给通用 Robot 操作线程。
-            stopNearbyItemRobotThread();
-            return matches;
-        } catch (Exception e) {
-            System.err.println("附近物品识别失败: " + e.getMessage());
-        }
-        return null;
-    }
-
-    private synchronized void stopNearbyItemRobotThread() {
-//        if (nearbyItemRobotThread != null) {
-//            nearbyItemRobotThread.requestStop();
-//            nearbyItemRobotThread = null;
-//        }
-        if (cookCornThread != null) {
-            cookCornThread.requestStop();
-            cookCornThread = null;
-        }
-    }
-
-    /**
-     * 新增：根据服务器重启时间，自动 stop → wait → start
-     */
-    private synchronized void scheduleRestartTask() {
-        restartSchedulingEnabled = true;
-        long generation = restartSchedulerGeneration;
-        if (restartScheduler == null || restartScheduler.isShutdown()) {
-            restartScheduler = Executors.newSingleThreadScheduledExecutor();
-        }
-
-        // Codex生成：已有检查任务正在运行时直接复用，防止重连再次启动相同任务。
-        if (restartCheckTask != null && !restartCheckTask.isCancelled() && !restartCheckTask.isDone()) {
-            return;
-        }
-
-        restartCheckTask = restartScheduler.scheduleAtFixedRate(() -> {
-            try {
-                if (!isRestartScheduleActive(generation)) {
-                    return;
-                }
-                LocalTime now = LocalTime.now();
-                // Codex生成：每次检查都读取最新下拉框值，修改后无需重建定时任务。
-                Integer targetHour = parseRestartHour(serverRestartTime);
-
-                if (targetHour != null && now.getHour() == targetHour && now.getMinute() == 2) {//假设是4点02分已经断开连接了.并且服务器已经重启完了
-                    Platform.runLater(() -> handleScheduledRestart(generation));
-                }
-            } catch (RuntimeException e) {
-                // 防止一次检查异常导致 scheduleAtFixedRate 永久停止。
-                if (isRestartScheduleActive(generation)) {
-                    System.err.println("服务器重启定时检查失败: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            }
-        }, 0, 1, TimeUnit.MINUTES);
-    }
-
-    private void handleScheduledRestart(long generation) {
-        // ↓ 可能在定时任务排队后、JavaFX 执行前发生，必须再次确认任务仍有效。
-        if (!isRestartScheduleActive(generation)) {
-            return;
-        }
-
-        stopTraining();
-        try {
-            Robot robot = new Robot();
-            robot.mouseMove(513, 403);
-            robot.delay(300);
-            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            robot.delay(50);
-            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-
-            robot.delay(3000);
-            robot.mouseMove(119, 396);
-            robot.delay(300);
-            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            robot.delay(50);
-            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
-        } catch (AWTException e) {
-            System.err.println("服务器重启 Robot 创建失败: " + e.getMessage());
-            return;
-        }
-
-        ScheduledExecutorService scheduler = restartScheduler;
-        if (isRestartScheduleActive(generation) && scheduler != null && !scheduler.isShutdown()) {
-            try {
-                restartResumeTask = scheduler.schedule(
-                        () -> {
-                            if (isRestartScheduleActive(generation)) {
-                                Platform.runLater(() -> {
-                                    if (isRestartScheduleActive(generation)) {
-                                        startTraining("restart");
-                                    }
-                                });
-                            }
-                        },
-                        restartDelayMinutes,
-                        TimeUnit.MINUTES);
-            } catch (RejectedExecutionException e) {
-                // ↓ 或窗口关闭恰好发生在提交期间属于正常取消，不打印错误。
-                if (isRestartScheduleActive(generation)) {
-                    System.err.println("提交服务器重启恢复任务失败: " + e.getMessage());
-                }
-                return;
-            }
-        } else {
-            return;
-        }
-
-        // Codex生成：本次重启处理完成后，推进并保存下一次服务器重启时间。
-        advanceServerRestartTime();
-    }
-
-    private boolean isRestartScheduleActive(long generation) {
-        return restartSchedulingEnabled && restartSchedulerGeneration == generation;
-    }
-
-    private synchronized void shutdownRestartScheduler() {
-        restartSchedulingEnabled = false;
-        restartSchedulerGeneration++;
-        if (restartCheckTask != null) {
-            restartCheckTask.cancel(true);
-            restartCheckTask = null;
-        }
-        if (restartResumeTask != null) {
-            restartResumeTask.cancel(true);
-            restartResumeTask = null;
-        }
-        if (restartScheduler != null) {
-            restartScheduler.shutdownNow();
-            restartScheduler = null;
-        }
-    }
-
-    /**
-     * Codex生成：把下拉框中的重启小时转换为可比较的0～23整数。
-     */
-    private Integer parseRestartHour(String value) {
-        try {
-            int hour = Integer.parseInt(value);
-            if (hour < 0 || hour > 23) {
-                return null;
-            }
-            return hour;
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
 
     /**
      * Codex生成：本次重启逻辑执行完成后，将当前重启小时加上间隔并对24取余。

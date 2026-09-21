@@ -1,0 +1,382 @@
+// SPDX-FileCopyrightText: 2026 Ksleephead
+// SPDX-License-Identifier: GPL-3.0-only
+
+package com.tankM6n.cooking;
+
+import com.tankM6n.game.GameRobot;
+import com.tankM6n.nearby.ItemMatch;
+import com.tankM6n.nearby.ItemType;
+import com.tankM6n.nearby.RegionTemplateDetector;
+import com.tankM6n.nearby.ScreenTemplateMatch;
+
+import java.awt.*;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
+/**
+ * 接收一轮附近物品识别结果，并在独立线程中执行后续 Robot 操作。
+ * 当前只搭建通用遍历入口，尚未加入鼠标移动或点击行为。
+ */
+public class CookingWorker extends Thread {
+    private final String cookType;
+    private final List<ItemMatch> itemMatches;
+    private GameRobot robot;
+    private RegionTemplateDetector panPositionDetector;
+    private volatile List<ScreenTemplateMatch> panPositions;
+
+    public CookingWorker(List<ItemMatch> itemMatches, String cookType) {
+        super("scum-cooking-worker");
+        this.itemMatches = List.copyOf(Objects.requireNonNull(itemMatches, "itemMatches"));
+        this.cookType = cookType;
+    }
+
+    @Override
+    public void run() {
+        try {
+            if (itemMatches.isEmpty()) {
+                return;
+            }
+            Map<ItemType, List<ItemMatch>> collect = itemMatches.stream()
+                    .collect(Collectors.groupingBy(ItemMatch::type));
+            List<ItemMatch> martirail = List.of();
+            if ("烤玉米".equals(cookType)){
+                martirail = collect.getOrDefault(ItemType.CORN, List.of());
+            } else if ("烤鱼".equals(cookType)) {
+                martirail = collect.getOrDefault(ItemType.FISH, List.of());
+            }
+            if (martirail.isEmpty()){
+                System.out.println("未识别到原材料");
+                return;
+            }
+
+            robot = new GameRobot();
+
+            //关闭tab
+            robot.keyPress(KeyEvent.VK_TAB);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_TAB);
+            // 开始做饭
+
+
+            safeDelay(1 * 1000);
+            Iterator<ItemMatch> martirailIterator = martirail.iterator();
+            int count = 0;
+            while (martirailIterator.hasNext()) {
+                if ("烤玉米".equals(cookType)){
+                    if (count >= 10){
+                        break;
+                    }
+                } else if ("烤鱼".equals(cookType)) {
+                    if (count >= 4){
+                        break;
+                    }
+                }
+
+
+                //打开tab
+                robot.keyPress(KeyEvent.VK_TAB);
+                safeDelay(50);
+                robot.keyRelease(KeyEvent.VK_TAB);
+
+                safeDelay(500);
+                panPositions = findPanPositions();
+                safeDelay(500);
+                if (panPositions.isEmpty()) {
+                    System.out.println("未识别到平底锅，结束本轮做饭");
+                    return;
+                }
+
+                for (ScreenTemplateMatch panPosition : panPositions) {
+                    int pingdiguoX = panPosition.screenX();
+                    int pingdiguoY = panPosition.screenY();
+                    //点进烹饪界面
+                    robot.mouseMove(pingdiguoX , pingdiguoY + 40);
+                    safeDelay(500);
+                    robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                    safeDelay(50);
+                    robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+
+                    if ("烤玉米".equals(cookType)){
+                        //选择烤蔬菜
+                        safeDelay(500);
+                        robot.mouseMove(848 , 307);
+                        safeDelay(500);
+                        robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                        safeDelay(50);
+                        robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+                    } else if ("烤鱼".equals(cookType)) {
+                        //选择烤鱼
+                        safeDelay(500);
+                        robot.mouseMove(961 , 195);
+                        safeDelay(500);
+                        robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                        safeDelay(50);
+                        robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+                    }
+
+                    //点击烹饪
+                    safeDelay(500);
+                    robot.mouseMove(964 , 732);
+                    safeDelay(500);
+                    robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                    safeDelay(50);
+                    robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+
+                    safeDelay(500);
+                }
+                safeDelay(500);
+                panPositions = findPanPositions();
+                safeDelay(500);
+                if (panPositions.isEmpty()) {
+                    System.out.println("未识别到平底锅，结束本轮做饭");
+                    return;
+                }
+                for (ScreenTemplateMatch panPosition : panPositions) {
+                    int pingdiguoX = panPosition.screenX();
+                    int pingdiguoY = panPosition.screenY();
+
+                    //偏移量
+                    int[][] points = null;;
+                    if ("烤玉米".equals(cookType)){
+                        points = new int[][]{
+                                {0, 32},
+                                {133, 32},
+                                {176, 32},
+                                {0, 75},
+                                {44, 76}
+                        };
+                    } else if ("烤鱼".equals(cookType)) {
+                        points = new int[][]{
+                                {0, 32},
+                                {133, 32}
+                        };
+                    }
+                    for (int i = 0; i < points.length; i++) {
+                        count++;
+                        if ("烤玉米".equals(cookType)){
+                            if (count > 10) break;
+                        } else if ("烤鱼".equals(cookType)) {
+                            if (count > 4) break;
+                        }
+
+                        if (!martirailIterator.hasNext()) {
+                            break;
+                        }
+                        ItemMatch corn = martirailIterator.next();
+                        int xBias = points[i][0];
+                        int yBias = points[i][1];
+                        if (!moveCorn(corn, pingdiguoX, pingdiguoY, 0, xBias, yBias)) {
+                            if (!martirailIterator.hasNext()) {
+                                break;
+                            }
+                            corn = martirailIterator.next();
+                            moveCorn(corn, pingdiguoX, pingdiguoY, 0, xBias, yBias);
+                        }
+                    }
+                }
+                for (ScreenTemplateMatch panPosition : panPositions) {
+                    int pingdiguoX = panPosition.screenX();
+                    int pingdiguoY = panPosition.screenY();
+                    safeDelay(500);
+                    //点击烹饪
+                    robot.mouseMove(pingdiguoX + 255, pingdiguoY + 36);
+                    robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                    safeDelay(50);
+                    robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+                }
+            }
+            detectCookStatus();
+            for (ScreenTemplateMatch panPosition : panPositions) {
+                //结束黑暗料理
+                robot.mouseMove(panPosition.screenX() + 255  , panPosition.screenY() + 81);
+                safeDelay(500);
+                robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                safeDelay(50);
+                robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+                safeDelay(1000);
+            }
+            safeDelay(1000);
+            for (ScreenTemplateMatch panPosition : panPositions) {
+                //拿取黑暗料理
+                robot.mouseMove(panPosition.screenX() + 92  , panPosition.screenY() + 82);
+                safeDelay(500);
+                robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+                safeDelay(50);
+                robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+                safeDelay(1000);
+            }
+        } catch (CancellationException | InterruptedException e) {
+            // 收到停止信号后直接结束，避免跳过延时继续执行剩余 Robot 操作。
+            Thread.currentThread().interrupt();
+        } catch (AWTException e) {
+            System.err.println("创建附近物品操作 Robot 失败: " + e.getMessage());
+        } catch (RuntimeException e) {
+            e.printStackTrace();
+            System.err.println("附近物品 Robot 线程执行失败: " + e.getMessage());
+        }
+    }
+
+    private void detectCookStatus() throws InterruptedException {
+        // ===== 配置参数 =====
+        int maxDepth = 50;           // 最大检测次数（比如 30 次 = 30 秒）
+        int checkInterval = 1;       // 检测间隔（秒）
+
+        // ===== 共享状态 =====
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicInteger attemptCount = new AtomicInteger(0);   // 当前递归/检测次数
+        AtomicBoolean conditionMet = new AtomicBoolean(false); // true=条件满足, false=超时
+
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+
+        // 使用固定延迟任务，不在任务内部递归 schedule，避免停止线程池时再次提交任务。
+        Runnable checkTask = () -> {
+            if (Thread.currentThread().isInterrupted()) {
+                return;
+            }
+
+            int currentAttempt = attemptCount.incrementAndGet();
+            if (currentAttempt > maxDepth) {
+                System.out.println("已达到最大检测次数（" + maxDepth + "），停止检测");
+                conditionMet.set(false);
+                latch.countDown();
+                return;
+            }
+
+            try {
+                Color color = getPixelColor(
+                        panPositions.get(0).screenX() - 21,
+                        panPositions.get(0).screenY() + 103);
+                if (Thread.currentThread().isInterrupted()) {
+                    return;
+                }
+                if (color.getBlue() < 50) {
+                    System.out.println("✅ 条件满足！blue=" + color.getBlue());
+                    conditionMet.set(true);
+                    latch.countDown();
+                }
+            } catch (RuntimeException e) {
+                // ↓ 引起的 shutdownNow() 是正常停止，不应作为任务错误打印。
+                if (!Thread.currentThread().isInterrupted() && !scheduler.isShutdown()) {
+                    System.err.println("❌ 检测异常：" + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+        };
+
+        // ===== 启动第一次检测 =====
+        System.out.println("🚀 启动检测任务...");
+        scheduler.scheduleWithFixedDelay(
+                checkTask, 5, checkInterval, TimeUnit.SECONDS);
+
+        // ===== 外面线程阻塞等待（相当于 wait）=====
+        try {
+            latch.await();  // 阻塞，直到条件满足、超过最大次数或线程被停止
+        } finally {
+            // ↓ 中断 latch.await() 时也必须关闭池，防止定时任务泄漏并继续操作 Robot。
+            scheduler.shutdownNow();
+        }
+
+        // ===== 根据结果做后续处理 =====
+        if (conditionMet.get()) {
+            System.out.println("主线程被唤醒：条件满足，继续执行后续逻辑...");
+        } else {
+            System.out.println("主线程被唤醒：检测超时，执行超时处理逻辑...");
+        }
+    }
+
+
+
+    private boolean moveCorn(ItemMatch corn , int pingdiguoX, int pingdiguoY , int tryTimes , int xBias , int yBias) {
+        int cornX = corn.screenX();
+        int cornY = corn.screenY();
+        int maxTryTimes = 10;
+        robot.mouseMove(cornX, cornY);
+        robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
+        safeDelay(300);
+        robot.mouseMove(cornX +1 , cornY +1);
+        safeDelay(500);
+        robot.mouseMove(pingdiguoX + xBias, pingdiguoY + yBias);
+        safeDelay(500);
+        robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
+        //执行校验，是否正确托过去了
+        Color cornColor = getPixelColor(pingdiguoX + xBias, pingdiguoY + yBias);
+        if (cornColor.getRed() <= 100 && cornColor.getGreen() <= 100 ){
+            if (tryTimes < maxTryTimes) {
+                tryTimes++;
+                //递归调用本身
+                return moveCorn(corn, pingdiguoX, pingdiguoY , tryTimes , xBias , yBias);
+            }else {
+                //填充失败
+                return false;
+            }
+        }else {
+            //填充成功
+            return true;
+        }
+    }
+
+    private List<ScreenTemplateMatch> findPanPositions() {
+        List<ScreenTemplateMatch> panPositions = List.of();
+        System.out.println("识别平底锅");
+        try {
+            if (panPositionDetector == null) {
+                // 左上角 (699,40)，右下边界扩大到 (740,340)，尺寸为 41×300。  490
+                panPositionDetector = new RegionTemplateDetector(
+                        // 确保位于 y=312 的 35×19 模板能够完整参与比较。
+                        new Rectangle(698, 37, 41, 450),
+                        "classpath:/image/pingdiguo.png",
+                        0.900);
+            }
+
+            // 每次调用本方法都会重新截图识别；返回值先保留在方法局部变量中。
+            panPositions = panPositionDetector.detectOnce();
+            for (ScreenTemplateMatch panPosition : panPositions) {
+                System.out.printf(
+                        "PAN_POSITION -> similarity=%.3f x=%d y=%d%n",
+                        panPosition.similarity(),
+                        panPosition.screenX(),
+                        panPosition.screenY());
+            }
+            if (panPositions.size() == 0){
+                System.out.println("未检测到");
+            }
+        } catch (Exception e) {
+            System.err.println("识别平底锅位置失败: " + e.getMessage());
+        }
+        return panPositions;
+    }
+
+    /** 可被 interrupt() 立即打断的延时。 */
+    private void safeDelay(long millis) {
+        robot.delayInterruptibly(millis);
+    }
+
+    /** 请求线程在处理下一个物品前结束。 */
+    public void requestStop() {
+        interrupt();
+    }
+    public Color getPixelColor(int x, int y) {
+        long end = System.currentTimeMillis() + 300;
+        while (System.currentTimeMillis() < end) {
+            if ( Thread.currentThread().isInterrupted()) {
+                return Color.BLACK;
+            }
+            try {
+                Thread.sleep(Math.min(50, end - System.currentTimeMillis()));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return Color.BLACK;
+            }
+        }
+        Color pixelColor = robot.getPixelColor(x, y);
+        return pixelColor;
+    }
+}
