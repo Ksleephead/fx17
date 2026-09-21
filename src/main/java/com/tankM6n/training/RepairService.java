@@ -20,7 +20,7 @@ final class RepairService {
         this.detectionService = detectionService;
     }
 
-    void repairGloves() throws InterruptedException {
+    void repairGloves(int cycle) throws InterruptedException {
         robot.ensureRunning();
         robot.tabSwitch();
         robot.safeDelay(300);
@@ -59,6 +59,9 @@ final class RepairService {
         } else {
             System.out.println("手套状态良好，不用修" + LocalDateTime.now());
         }
+
+        this.repairShoes(cycle);
+
         robot.tabSwitch();
     }
 
@@ -66,13 +69,13 @@ final class RepairService {
         if (cycle % 5 != 0) {
             return;
         }
-        System.out.println("修鞋子" + LocalDateTime.now());
         robot.keyPress(KeyEvent.VK_1);
         robot.safeDelay(50);
         robot.keyRelease(KeyEvent.VK_1);
         robot.safeDelay(500);
         Color shoes = robot.getDelayedPixelColor(1017, 671);
         if (shoes.getRed() > 200) {
+            System.out.println("修鞋子" + LocalDateTime.now());
             robot.mouseMove(981, 634);
             robot.safeDelay(300);
             robot.click(InputEvent.BUTTON3_DOWN_MASK);

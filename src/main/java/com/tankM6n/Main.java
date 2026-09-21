@@ -8,6 +8,8 @@ import com.tankM6n.hotkey.GlobalHotkeyService;
 import com.tankM6n.restart.RestartScheduler;
 import com.tankM6n.training.TrainingService;
 import com.tankM6n.training.TrainingSettings;
+import com.tankM6n.update.UpdateDialog;
+import com.tankM6n.update.UpdateService;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
@@ -34,6 +36,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class Main extends Application {
@@ -108,6 +112,12 @@ public class Main extends Application {
 
     // Retain the JavaFX player while a short notification is playing.
     private MediaPlayer notificationPlayer;
+
+    private final ExecutorService updateExecutor = Executors.newSingleThreadExecutor(task -> {
+        Thread thread = new Thread(task, "update-check");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     @Override
     public void start(Stage primaryStage) {
@@ -442,6 +452,26 @@ public class Main extends Application {
 
         primaryStage.show();
         hotkeyService.start();
+        checkForUpdatesAsync();
+    }
+
+    private void checkForUpdatesAsync() {
+        updateExecutor.execute(() -> {
+            try {
+                new UpdateService().checkForUpdate().ifPresent(updateInfo ->
+                        Platform.runLater(() -> {
+                            try {
+                                UpdateDialog.show(mainStage, getHostServices(), updateInfo);
+                            } catch (RuntimeException exception) {
+                                ConsoleLog.log("更新提示：显示更新窗口失败，" + exception.getMessage());
+                            }
+                        }));
+            } catch (RuntimeException exception) {
+                ConsoleLog.log("更新检查：后台任务失败，" + exception.getMessage());
+            } finally {
+                updateExecutor.shutdown();
+            }
+        });
     }
 
     /**

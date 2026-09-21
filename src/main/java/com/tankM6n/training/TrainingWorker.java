@@ -122,6 +122,40 @@ public class TrainingWorker extends Thread {
     private void runTrainingLoop() throws Exception {
         restService.prepareForTraining(insideGameOrNot);
 
+        muteAll();//聊天频道静音
+
+
+        for (int i = 0; i < Integer.MAX_VALUE && running; i++) {
+            if (!running) {
+                break;
+            }
+            releaseKeys();
+            restService.standUp(i);//站立
+            repairService.repairGloves(i);//修手套、鞋子
+            foodService.checkAndEat();//吃饭
+            foodService.handleRequiredRest();//强制休息
+            ensureRunning();
+            robot.tabSwitch();
+            safeDelay(500);
+
+            storageService.destroyForCycle();
+            if (!running) {
+                break;
+            }
+            //关闭Tab
+            safeDelay(500);
+            ensureRunning();
+            robot.tabSwitch();
+            safeDelay(100);
+            robot.keyPress(KeyEvent.VK_C);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_C);
+            safeDelay(400);
+            restService.recover();
+        }
+    }
+
+    private void muteAll() throws InterruptedException {
         //打开聊天框
         robot.keyPress(KeyEvent.VK_T);
         safeDelay(50);
@@ -147,39 +181,6 @@ public class TrainingWorker extends Thread {
         safeDelay(500);
         robot.keyRelease(KeyEvent.VK_ESCAPE);
         safeDelay(1000);
-
-
-        for (int i = 0; i < Integer.MAX_VALUE && running; i++) {
-            if (!running) {
-                break;
-            }
-            releaseKeys();
-            //开局修手套
-            restService.standUp(i);
-            repairService.repairGloves();//加上物品栏上移逻辑
-            //吃东西
-            foodService.checkAndEat();
-            foodService.handleRequiredRest();
-            ensureRunning();
-            robot.tabSwitch();
-            safeDelay(500);
-            //修鞋子
-            repairService.repairShoes(i);
-            storageService.destroyForCycle();
-            if (!running) {
-                break;
-            }
-            //关闭Tab
-            safeDelay(500);
-            ensureRunning();
-            robot.tabSwitch();
-            safeDelay(100);
-            robot.keyPress(KeyEvent.VK_C);
-            safeDelay(50);
-            robot.keyRelease(KeyEvent.VK_C);
-            safeDelay(400);
-            restService.recover();
-        }
     }
 
     /** @deprecated Kept for source compatibility with the former xiangzi class. */
