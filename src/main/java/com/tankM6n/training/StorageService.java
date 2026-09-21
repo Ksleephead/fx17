@@ -297,9 +297,10 @@ final class StorageService {
             BufferedImage currentImage = robot.createScreenCapture(monitoredArea);
             if (imagesAreEqual(previousImage, currentImage)) {
                 System.out.println("检测区域已稳定，停止运行" + LocalDateTime.now());
-                if (lastDestroyTime != 0) {
+                if (lastDestroyTime == 0) {
                     lastDestroyTime = (int) (Math.floor(
                             System.currentTimeMillis() - startedAt) / 1_000) - 2;
+                    System.out.println("最后一次砸箱子耗时" + (System.currentTimeMillis() - startedAt) / 1_000 + "/" + LocalDateTime.now());
                 }
                 if (hit != 3) {
                     shouldSkipFinalDestroy = true;
