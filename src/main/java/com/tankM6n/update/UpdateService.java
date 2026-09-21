@@ -16,7 +16,7 @@ import java.util.Optional;
 
 public final class UpdateService {
     public static final String UPDATE_URL =
-            "https://gitee.com/GorphynMars/scum-update/raw/main/latest.json";
+            "https://raw.giteeusercontent.com/ksleephead/scum-fx17-update/raw/master/latest.json";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
     private final HttpClient httpClient;

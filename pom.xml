@@ -6,7 +6,7 @@
 
     <groupId>com.tankM6n</groupId>
     <artifactId>fx17</artifactId>
-    <version>1.67</version>
+    <version>1.6.7</version>
 
     <licenses>
         <license>
@@ -81,6 +81,22 @@
 
     <build>
         <finalName>fx17</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>app-version.properties</exclude>
+                </excludes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>app-version.properties</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
