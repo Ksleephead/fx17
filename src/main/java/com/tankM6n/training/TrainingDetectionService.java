@@ -29,6 +29,8 @@ final class TrainingDetectionService {
     private RegionDetectorConfig fridgeConfig;
     private RegionTemplateDetector fridgeDetector;
     private RegionDetectorConfig destroyConfig;
+    private RegionTemplateDetector cookedFishDetector;
+    private RegionTemplateDetector cookedCornDetector;
 
     ScreenTemplateMatch detectArrowOnce() throws Exception {
         if (arrowDetector == null) {
@@ -76,6 +78,24 @@ final class TrainingDetectionService {
         addStorageMatches(matches, "case", caseDetector, caseConfig);
         addStorageMatches(matches, "fridge", fridgeDetector, fridgeConfig);
         return List.copyOf(matches);
+    }
+
+    List<ScreenTemplateMatch> detectCookedFishOnce() throws Exception {
+        if (cookedFishDetector == null) {
+            Rectangle searchArea = new Rectangle(370, 260, 625 - 370, 516 - 260);
+            cookedFishDetector = new RegionTemplateDetector(
+                    searchArea, "classpath:/image/cookedFish.jpg", 0.900);
+        }
+        return cookedFishDetector.detectOnce();
+    }
+
+    List<ScreenTemplateMatch> detectCookedCornOnce() throws Exception {
+        if (cookedCornDetector == null) {
+            Rectangle searchArea = new Rectangle(370, 260, 625 - 370, 516 - 260);
+            cookedCornDetector = new RegionTemplateDetector(
+                    searchArea, "classpath:/image/cookedCorn.jpg", 0.900);
+        }
+        return cookedCornDetector.detectOnce();
     }
 
     ScreenTemplateMatch detectDestroyOnce(int screenX, int screenY) throws Exception {

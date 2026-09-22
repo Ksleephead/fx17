@@ -3,9 +3,15 @@
 
 package com.tankM6n.training;
 
+import com.tankM6n.nearby.ScreenTemplateMatch;
+import org.springframework.util.CollectionUtils;
+
 import java.awt.Color;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
 
@@ -132,6 +138,51 @@ public class TrainingWorker extends Thread {
             releaseKeys();
             restService.standUp(i);//站立
             repairService.repairGloves(i);//修手套、鞋子
+
+            robot.tabSwitch();
+            safeDelay(500);
+            robot.keyPress(KeyEvent.VK_1);
+            safeDelay(50);
+            robot.keyRelease(KeyEvent.VK_1);
+            //识别冰箱位置
+            StorageItemMatch fridgePosition = null;
+            Optional<StorageItemMatch> position = storageService.findCaseOrFridge("fridge");
+            if (position.isPresent()) {
+                fridgePosition = position.get();
+                System.out.println("识别到冰箱位置:" + fridgePosition.screenX() + "," + fridgePosition.screenY());
+                Color color = robot.getPixelColor(fridgePosition.screenX() - 24, fridgePosition.screenY() - 37);
+                //如果是橙色就是打开了的,<200就是关闭状态
+                if (color.getRed() < 200) {
+                    robot.mouseMove(fridgePosition.screenX(), fridgePosition.screenY());
+                    safeDelay(300);
+                    doubleClick();
+                    robot.mouseMove(0, 0);
+                }
+                safeDelay(500);
+                List<ScreenTemplateMatch> cookedFishMatches =
+                        detectionService.detectCookedFishOnce();
+                List<ScreenTemplateMatch> cookedCornMatches =
+                        detectionService.detectCookedCornOnce();
+
+                if (!CollectionUtils.isEmpty(cookedFishMatches)){
+                    System.out.println("识别到烤鱼个数：" + cookedCornMatches.size());
+                    ScreenTemplateMatch screenTemplateMatch = cookedFishMatches.get(0);
+                    robot.mouseMove(screenTemplateMatch.screenX() , screenTemplateMatch.screenY());
+                    safeDelay(300);
+                    doubleClick();
+                }
+                if (!CollectionUtils.isEmpty(cookedCornMatches)){
+                    System.out.println("识别到烤玉米个数：" + cookedCornMatches.size());
+                    for (ScreenTemplateMatch screenTemplateMatch : cookedCornMatches) {
+                        robot.mouseMove(screenTemplateMatch.screenX() , screenTemplateMatch.screenY());
+                        safeDelay(800);
+                        doubleClick();
+                    }
+                }
+            }
+            robot.tabSwitch();
+
+
             foodService.checkAndEat();//吃饭
             foodService.handleRequiredRest();//强制休息
             ensureRunning();
@@ -153,6 +204,13 @@ public class TrainingWorker extends Thread {
             safeDelay(400);
             restService.recover();
         }
+    }
+
+    private void doubleClick() throws InterruptedException {
+        //双击打开
+        robot.click(InputEvent.BUTTON1_DOWN_MASK);
+        safeDelay(50);
+        robot.click(InputEvent.BUTTON1_DOWN_MASK);
     }
 
     private void muteAll() throws InterruptedException {

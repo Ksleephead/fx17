@@ -253,7 +253,7 @@ final class StorageService {
         }
     }
 
-    private Optional<StorageItemMatch> findCaseOrFridge(String type)
+    public Optional<StorageItemMatch> findCaseOrFridge(String type)
             throws InterruptedException {
         inventoryService.ensureItemPanelPosition();
         try {
