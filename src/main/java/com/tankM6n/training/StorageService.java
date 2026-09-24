@@ -148,16 +148,77 @@ final class StorageService {
             nextHitIndex = hit + 1;
         }
         if (shouldEatCoffee && coffeeCheck) {
-            coffeeCheck = false;
-            robot.ensureRunning();
-            robot.tabSwitch();
+            tapKey(KeyEvent.VK_4, 50);
             robot.safeDelay(500);
-            tapKey(KeyEvent.VK_C, 300);
-            eatCoffee();
-            robot.ensureRunning();
-            robot.tabSwitch();
+            moveMouseForInfoWithRetry(0);
+            robot.safeDelay(500);
+
+            boolean areaChanged = coffeeDoubleCheckAreaChanged();
+            System.out.println("咖啡识别区域在10秒内"
+                    + (areaChanged ? "累计至少发生2次变化" : "累计变化不足2次"));
+
+            if (areaChanged) {
+                coffeeCheck = false;
+                robot.ensureRunning();
+                robot.tabSwitch();
+                robot.safeDelay(500);
+                tapKey(KeyEvent.VK_C, 300);
+                eatCoffee();
+                robot.ensureRunning();
+                robot.tabSwitch();
+            }else {
+                System.out.println("咖啡含量存在误判！！！！！！！！！！！！！！" + LocalDateTime.now());
+            }
+
         }
         return new DestroyResult(currentCoffeeEdge, nextHitIndex);
+    }
+    private boolean coffeeDoubleCheckAreaChanged() throws InterruptedException {
+        Rectangle area = new Rectangle(410, 522, 445 - 410, 545 - 522);
+        BufferedImage previousImage = robot.createScreenCapture(area);
+        int changeCount = 0;
+        for (int sample = 0; sample < 5; sample++) {
+            robot.safeDelay(2_000);
+            BufferedImage currentImage = robot.createScreenCapture(area);
+            if (!imagesAreEqual(previousImage, currentImage)) {
+                changeCount++;
+            }
+            previousImage = currentImage;
+        }
+        return changeCount >= 2;
+    }
+
+    public void moveMouseCoffeeInfo() {
+        robot.delay(300);
+        robot.mouseMove(345, 471);
+        robot.delay(10);
+        robot.mouseMove(344, 470);
+        robot.delay(10);
+        robot.mouseMove(343, 471);
+        robot.delay(10);
+        robot.mouseMove(342, 470);
+        robot.delay(10);
+        robot.mouseMove(341, 471);
+        robot.delay(10);
+        robot.mouseMove(340, 471);
+        robot.delay(1500);
+    }
+    public void moveMouseForInfoWithRetry(int retryCount) {
+        // 移动鼠标
+        moveMouseCoffeeInfo();
+        // 检测移动后，信息框是否正确打开
+        Color dazi = robot.getPixelColor(351, 515);
+        boolean needRetry = dazi.getGreen() < 40;
+        if (needRetry) {
+            if (retryCount >= 5) {
+                System.out.println("已达到最大重试次数，停止移动鼠标");
+                return;
+            }
+            System.out.println("信息框未正确打开，第 "
+                    + retryCount
+                    + " 次重试");
+            moveMouseForInfoWithRetry(retryCount + 1);
+        }
     }
 
     private Future<Integer> checkCoffeeEdge() throws InterruptedException {
