@@ -150,7 +150,7 @@ public class Main extends Application {
         tip1.setFont(Font.font("System", FontWeight.BOLD, 14));
         tip1.setStyle("-fx-text-fill: red;");
 
-        Label tip2 = new Label("2、吃的放到4、9、0号快捷键");
+        Label tip2 = new Label("2、装咖啡的瓶子放8号快捷键");
         tip2.setLayoutX(20);
         tip2.setLayoutY(35);
         tip2.setFont(Font.font("System", FontWeight.BOLD, 14));
@@ -163,7 +163,7 @@ public class Main extends Application {
         tip3.setFont(Font.font("System", FontWeight.BOLD, 14));
         tip3.setStyle("-fx-text-fill: red;");
 
-        Label tip4 = new Label("4、装咖啡的瓶子放8号快捷键");
+        Label tip4 = new Label("4、快捷键4号烤玉米9号烤鱼0号鲍勃糖");
         tip4.setLayoutX(220);
         tip4.setLayoutY(35);
         tip4.setFont(Font.font("System", FontWeight.BOLD, 14));

@@ -135,8 +135,8 @@ public class TrainingWorker extends Thread {
             releaseKeys();
             restService.standUp(i);//站立
             repairService.repairGloves(i);//修手套、鞋子
-            cookedFoodReplenishmentService.replenishIfNeeded();//检测是否需要补充食物
             foodService.checkAndEat();//吃饭
+            cookedFoodReplenishmentService.replenishIfNeeded();//检测是否需要补充食物
             foodService.handleRequiredRest();//强制休息
             ensureRunning();
             robot.tabSwitch();
