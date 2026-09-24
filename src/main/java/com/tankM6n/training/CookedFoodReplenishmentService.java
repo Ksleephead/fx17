@@ -31,6 +31,7 @@ final class CookedFoodReplenishmentService {
         robot.keyPress(KeyEvent.VK_1);
         robot.safeDelay(50);
         robot.keyRelease(KeyEvent.VK_1);
+        robot.safeDelay(500);
 
         // 4号快捷键状态豆消失表示烤玉米耗尽；9号快捷键暂存烤鱼。
         boolean needCorn = robot.getPixelColor(838, 671).getGreen() < 150;
