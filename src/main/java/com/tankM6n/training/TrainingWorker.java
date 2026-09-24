@@ -18,6 +18,7 @@ public class TrainingWorker extends Thread {
     private String trainingEfficiency;    // 炼体策略：效率优先或敏捷优先
     // 新增咖啡因相关成员变量
     private boolean enableAutoCaffeine; // 是否启用自动吃咖啡粉
+    private boolean enableAutoEat; // 是否启用自动吃饭
 
     private volatile boolean running;
     private boolean foodStroageIntoFridge;     // 食物是否存放于冰箱
@@ -55,6 +56,7 @@ public class TrainingWorker extends Thread {
         this.insideGameOrNot = insideGameOrNot;
         this.trainingEfficiency = trainingEfficiency;
         this.executor = executor;
+        this.enableAutoEat = enableAutoEat;
         this.completionCallback = completionCallback;
     }
 
@@ -135,8 +137,12 @@ public class TrainingWorker extends Thread {
             releaseKeys();
             restService.standUp(i);//站立
             repairService.repairGloves(i);//修手套、鞋子
-            foodService.checkAndEat();//吃饭
-            cookedFoodReplenishmentService.replenishIfNeeded();//检测是否需要补充食物
+            if (enableAutoEat) {
+                foodService.checkAndEat();//吃饭
+            }
+            if (foodStroageIntoFridge) {
+                cookedFoodReplenishmentService.replenishIfNeeded();//检测是否需要补充食物
+            }
             foodService.handleRequiredRest();//强制休息
             ensureRunning();
             robot.tabSwitch();

@@ -322,7 +322,8 @@ public class Main extends Application {
 
         trainingEfficiencyComboBox = new ComboBox<>();
         trainingEfficiencyComboBox.setItems(FXCollections.observableArrayList(
-                "效率优先", "敏捷优先"));
+//                "效率优先", "敏捷优先"));
+                "敏捷优先"));
         trainingEfficiencyComboBox.setLayoutX(220);
         trainingEfficiencyComboBox.setLayoutY(435);
         trainingEfficiencyComboBox.setPrefWidth(120);
