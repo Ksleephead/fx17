@@ -21,7 +21,6 @@ public class TrainingWorker extends Thread {
     private boolean enableAutoEat; // 是否启用自动吃饭
 
     private volatile boolean running;
-    private boolean foodStroageIntoFridge;     // 食物是否存放于冰箱
     TrainingRobot robot;
     private final TrainingDetectionService detectionService = new TrainingDetectionService();
     private RestService restService;
@@ -35,24 +34,23 @@ public class TrainingWorker extends Thread {
     private final Runnable completionCallback;
     // 添加构造方法接收6个double参数
 
-    public TrainingWorker(double recoveryTime, double timePerHit, boolean dropInsteadDestroy, String restType, boolean enableAutoCaffeine, double caffeineMgValue, boolean enableAutoEat, boolean foodStroageIntoFridge, String insideGameOrNot, String trainingEfficiency, ExecutorService executor) {
-        this(recoveryTime, timePerHit, dropInsteadDestroy, restType,
+    public TrainingWorker(double recoveryTime, double timePerHit, boolean dropInsteadDestroy, String restType, boolean enableAutoCaffeine, double caffeineMgValue, boolean enableAutoEat, String insideGameOrNot, String trainingEfficiency, ExecutorService executor) {
+        this(recoveryTime, timePerHit, restType,
                 enableAutoCaffeine, caffeineMgValue, enableAutoEat,
-                foodStroageIntoFridge, insideGameOrNot, trainingEfficiency,
+                insideGameOrNot, trainingEfficiency,
                 executor, () -> { });
     }
 
     public TrainingWorker(double recoveryTime, double timePerHit,
-                          boolean dropInsteadDestroy, String restType,
+                          String restType,
                           boolean enableAutoCaffeine, double caffeineMgValue,
-                          boolean enableAutoEat, boolean foodStroageIntoFridge,
+                          boolean enableAutoEat,
                           String insideGameOrNot, String trainingEfficiency,
                           ExecutorService executor, Runnable completionCallback) {
         this.recoveryTime = recoveryTime;
         this.timePerHit = timePerHit;
         this.restType = restType;
         this.enableAutoCaffeine = enableAutoCaffeine;
-        this.foodStroageIntoFridge = foodStroageIntoFridge;
         this.insideGameOrNot = insideGameOrNot;
         this.trainingEfficiency = trainingEfficiency;
         this.executor = executor;
@@ -73,8 +71,7 @@ public class TrainingWorker extends Thread {
                     inventoryService,
                     executor,
                     timePerHit,
-                    enableAutoCaffeine,
-                    foodStroageIntoFridge);
+                    enableAutoCaffeine);
             foodService = new FoodService(
                     robot, detectionService, inventoryService, restService,
                     trainingEfficiency);
@@ -138,9 +135,7 @@ public class TrainingWorker extends Thread {
             releaseKeys();
             restService.standUp(i);//站立
             repairService.repairGloves(i);//修手套、鞋子
-            if (foodStroageIntoFridge) {
-                cookedFoodReplenishmentService.replenishIfNeeded();//检测是否需要补充食物
-            }
+            cookedFoodReplenishmentService.replenishIfNeeded();//检测是否需要补充食物
             if (enableAutoEat) {
                 foodService.checkAndEat();//吃饭
             }

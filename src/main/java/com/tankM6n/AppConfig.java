@@ -12,7 +12,6 @@ public class AppConfig {
     private String caffeineMg = "";
     private boolean enableAutoCaffeine;
     private boolean enableAutoEat;
-    private boolean foodStroageIntoFridge = true;
     private String trainingEfficiency = "效率优先";
     private String serverRestartTime = "12";
     private long accumulatedTrainingMillis;
@@ -81,14 +80,6 @@ public class AppConfig {
 
     public void setEnableAutoEat(boolean enableAutoEat) {
         this.enableAutoEat = enableAutoEat;
-    }
-
-    public boolean isFoodStroageIntoFridge() {
-        return foodStroageIntoFridge;
-    }
-
-    public void setFoodStroageIntoFridge(boolean foodStroageIntoFridge) {
-        this.foodStroageIntoFridge = foodStroageIntoFridge;
     }
 
     public String getTrainingEfficiency() {

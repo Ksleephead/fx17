@@ -48,8 +48,6 @@ public class Main extends Application {
     private String restType;           // 休息类型（新增下拉框值）
     private boolean enableAutoEat;     // 是否启用自动吃饭
     private CheckBox autoEatCheckBox;  // 自动吃饭复选框引用
-    private boolean foodStroageIntoFridge = true; // 是否启用冰箱存放食物，默认启用
-    private ComboBox<String> foodStorageComboBox;
 
     // 新增咖啡因相关成员变量
     private String caffeineMg;          // 当前已吸收咖啡因（毫克）
@@ -373,40 +371,24 @@ public class Main extends Application {
             }
         });
 
-        Label foodStorageLabel = new Label("是否启用冰箱存放食物：");
-        foodStorageLabel.setLayoutX(20);
-        foodStorageLabel.setLayoutY(540);
-
-        foodStorageComboBox = new ComboBox<>();
-        foodStorageComboBox.setItems(FXCollections.observableArrayList("是", "否"));
-        foodStorageComboBox.setLayoutX(220);
-        foodStorageComboBox.setLayoutY(540);
-        foodStorageComboBox.setPrefWidth(120);
-        foodStorageComboBox.setValue("是");
-        foodStorageComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue != null) {
-                foodStroageIntoFridge = "是".equals(newValue);
-            }
-        });
-
         // 添加编辑/保存按钮
         editSaveButton = new Button("编辑");
         editSaveButton.setLayoutX(20);
-        editSaveButton.setLayoutY(585);
+        editSaveButton.setLayoutY(540);
         editSaveButton.setPrefWidth(150);
         editSaveButton.setOnAction(event -> toggleEditMode());
 
         // 添加开始训练按钮
         Button startButton = new Button("开始训练");
         startButton.setLayoutX(180);
-        startButton.setLayoutY(585);
+        startButton.setLayoutY(540);
         startButton.setPrefWidth(150);
         startButton.setOnAction(event -> requestTrainingStart("default"));
 
         // 添加停止训练按钮
         Button stopButton = new Button("停止训练");
         stopButton.setLayoutX(340);
-        stopButton.setLayoutY(585);
+        stopButton.setLayoutY(540);
         stopButton.setPrefWidth(150);
         stopButton.setOnAction(event -> stopTrainingManually());
 
@@ -432,12 +414,11 @@ public class Main extends Application {
                 trainingEfficiencyLabel, trainingEfficiencyComboBox,
                 cookingTypeLabel, cookingTypeComboBox,
                 cornCookCountLabel, cornCookCountComboBox,
-                foodStorageLabel, foodStorageComboBox,
                 editSaveButton, startButton, stopButton,
                 trainingDurationLabel, trainingDurationField);
 
         // 设置场景和舞台
-        Scene scene = new Scene(root, 500, 640);
+        Scene scene = new Scene(root, 500, 600);
         primaryStage.setTitle("SCUM创可贴免费炼体器(作者：GorphynMars)");
         primaryStage.setScene(scene);
 
@@ -556,7 +537,6 @@ public class Main extends Application {
         trainingEfficiencyComboBox.setDisable(!editable);
         cookingTypeComboBox.setDisable(!editable);
         cornCookCountComboBox.setDisable(!editable);
-        foodStorageComboBox.setDisable(!editable);
     }
 
     /**
@@ -572,7 +552,6 @@ public class Main extends Application {
         caffeineMg = config.getCaffeineMg();
         enableAutoCaffeine = config.isEnableAutoCaffeine();
         enableAutoEat = config.isEnableAutoEat();
-        foodStroageIntoFridge = config.isFoodStroageIntoFridge();
         trainingEfficiency = config.getTrainingEfficiency();
         serverRestartTime = config.getServerRestartTime();
         // Codex生成：加载已保存的服务器重启间隔。
@@ -594,7 +573,6 @@ public class Main extends Application {
         config.setDropInsteadDestroy(dropInsteadDestroy);
         config.setRestType(restType);
         config.setEnableAutoEat(enableAutoEat);
-        config.setFoodStroageIntoFridge(foodStroageIntoFridge);
         config.setTrainingEfficiency(trainingEfficiency);
         config.setCaffeineMg(caffeineMg);
         config.setEnableAutoCaffeine(enableAutoCaffeine);
@@ -637,9 +615,6 @@ public class Main extends Application {
         // 新增：更新自动吃饭复选框状态
         if (autoEatCheckBox != null) {
             autoEatCheckBox.setSelected(enableAutoEat);
-        }
-        if (foodStorageComboBox != null) {
-            foodStorageComboBox.setValue(foodStroageIntoFridge ? "是" : "否");
         }
         if (trainingEfficiencyComboBox != null) {
             trainingEfficiencyComboBox.setValue(trainingEfficiency);
@@ -758,7 +733,6 @@ public class Main extends Application {
                     enableAutoCaffeine,
                     caffeineMgValue,
                     enableAutoEat,
-                    foodStroageIntoFridge,
                     trainingEfficiency);
 
             trainingService.start(settings, value);

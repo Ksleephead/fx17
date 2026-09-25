@@ -12,6 +12,5 @@ public record TrainingSettings(
         boolean enableAutoCaffeine,
         double caffeineMg,
         boolean enableAutoEat,
-        boolean foodStorageIntoFridge,
         String trainingEfficiency) {
 }

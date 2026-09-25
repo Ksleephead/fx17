@@ -18,12 +18,10 @@ public final class TrainingService implements AutoCloseable {
         TrainingWorker newWorker = new TrainingWorker(
                 settings.recoveryTime(),
                 settings.timePerHit(),
-                settings.dropInsteadDestroy(),
                 settings.restType(),
                 settings.enableAutoCaffeine(),
                 settings.caffeineMg(),
                 settings.enableAutoEat(),
-                settings.foodStorageIntoFridge(),
                 startMode,
                 settings.trainingEfficiency(),
                 detectionExecutor,

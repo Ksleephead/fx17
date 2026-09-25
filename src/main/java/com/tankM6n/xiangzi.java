@@ -15,12 +15,12 @@ public final class xiangzi extends TrainingWorker {
     public xiangzi(double recoveryTime, double timePerHit,
                    boolean dropInsteadDestroy, String restType,
                    boolean enableAutoCaffeine, double caffeineMgValue,
-                   boolean enableAutoEat, boolean foodStroageIntoFridge,
+                   boolean enableAutoEat,
                    String insideGameOrNot, String trainingEfficiency,
                    ExecutorService executor) {
         super(recoveryTime, timePerHit, dropInsteadDestroy, restType,
                 enableAutoCaffeine, caffeineMgValue, enableAutoEat,
-                foodStroageIntoFridge, insideGameOrNot, trainingEfficiency,
+                insideGameOrNot, trainingEfficiency,
                 executor);
     }
 }

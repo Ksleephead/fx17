@@ -29,8 +29,6 @@ public class ConfigService {
         config.setCaffeineMg(prop.getProperty("caffeineMg", ""));
         config.setEnableAutoCaffeine(Boolean.parseBoolean(prop.getProperty("enableAutoCaffeine", "false")));
         config.setEnableAutoEat(Boolean.parseBoolean(prop.getProperty("enableAutoEat", "false")));
-        config.setFoodStroageIntoFridge(parseBooleanFlag(
-                prop.getProperty("foodStroageIntoFridge", "1"), true));
         config.setTrainingEfficiency(prop.getProperty("trainingEfficiency", "效率优先"));
         config.setServerRestartTime(prop.getProperty("serverRestartTime", "12"));
         config.setAccumulatedTrainingMillis(parseNonNegativeLong(
@@ -50,8 +48,6 @@ public class ConfigService {
         prop.setProperty("dropInsteadDestroy", Boolean.toString(config.isDropInsteadDestroy()));
         prop.setProperty("restType", valueOrDefault(config.getRestType(), "趴下"));
         prop.setProperty("enableAutoEat", Boolean.toString(config.isEnableAutoEat()));
-        prop.setProperty("foodStroageIntoFridge",
-                config.isFoodStroageIntoFridge() ? "1" : "0");
         prop.setProperty("trainingEfficiency",
                 valueOrDefault(config.getTrainingEfficiency(), "效率优先"));
         prop.setProperty("caffeineMg", valueOrEmpty(config.getCaffeineMg()));
@@ -86,13 +82,4 @@ public class ConfigService {
         }
     }
 
-    private boolean parseBooleanFlag(String value, boolean defaultValue) {
-        if ("1".equals(value) || "true".equalsIgnoreCase(value)) {
-            return true;
-        }
-        if ("0".equals(value) || "false".equalsIgnoreCase(value)) {
-            return false;
-        }
-        return defaultValue;
-    }
 }

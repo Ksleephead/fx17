@@ -27,7 +27,6 @@ final class StorageService {
     private final ExecutorService executor;
     private final double timePerHit;
     private final boolean autoCaffeine;
-    private final boolean foodStorageIntoFridge;
 
     private int lastCoffeeEdge;
     private int lastDestroyTime;
@@ -40,15 +39,13 @@ final class StorageService {
             InventoryService inventoryService,
             ExecutorService executor,
             double timePerHit,
-            boolean autoCaffeine,
-            boolean foodStorageIntoFridge) {
+            boolean autoCaffeine) {
         this.robot = robot;
         this.detectionService = detectionService;
         this.inventoryService = Objects.requireNonNull(inventoryService, "inventoryService");
         this.executor = executor;
         this.timePerHit = timePerHit;
         this.autoCaffeine = autoCaffeine;
-        this.foodStorageIntoFridge = foodStorageIntoFridge;
     }
 
     void destroyForCycle() throws Exception {
@@ -74,27 +71,19 @@ final class StorageService {
         robot.safeDelay(500);
 
         StorageItemMatch storagePosition = null;
-        if (foodStorageIntoFridge) {
-            Optional<StorageItemMatch> position = findCaseOrFridge("case");
-            if (position.isPresent()) {
-                storagePosition = position.get();
-                robot.mouseMove(storagePosition.screenX(), storagePosition.screenY());
-            }
-        } else {
-            robot.mouseMove(380, 100);
+        Optional<StorageItemMatch> position = findCaseOrFridge("case");
+        if (position.isPresent()) {
+            storagePosition = position.get();
+            robot.mouseMove(storagePosition.screenX(), storagePosition.screenY());
         }
         robot.safeDelay(500);
         robot.ensureRunning();
         robot.click(InputEvent.BUTTON3_DOWN_MASK);
         robot.safeDelay(500);
 
-        if (foodStorageIntoFridge) {
-            ScreenTemplateMatch destroyMatch = findDestroyButton(storagePosition);
-            if (destroyMatch != null) {
-                robot.mouseMove(destroyMatch.screenX(), destroyMatch.screenY());
-            } else {
-                robot.mouseMove(390, 195);
-            }
+        ScreenTemplateMatch destroyMatch = findDestroyButton(storagePosition);
+        if (destroyMatch != null) {
+            robot.mouseMove(destroyMatch.screenX(), destroyMatch.screenY());
         } else {
             robot.mouseMove(390, 195);
         }
@@ -466,7 +455,7 @@ final class StorageService {
                 System.out.println("检测区域已稳定，停止运行" + LocalDateTime.now());
                 if (lastDestroyTime == 0) {
                     lastDestroyTime = (int) (Math.floor(
-                            System.currentTimeMillis() - startedAt) / 1_000) - 2;
+                            System.currentTimeMillis() - startedAt) / 1_000) - 3;
                     System.out.println("最后一次砸箱子耗时" + (System.currentTimeMillis() - startedAt) / 1_000 + "/" + LocalDateTime.now());
                 }
                 if (hit != 3) {
