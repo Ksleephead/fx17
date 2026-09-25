@@ -10,6 +10,8 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.time.LocalDateTime;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -22,7 +24,7 @@ final class FoodService {
     private final InventoryService inventoryService;
     private final RestService restService;
     private final String trainingEfficiency;
-    private volatile String restRequirement = "Unnecessary";
+    private static volatile String restRequirement = "Unnecessary";
 
     FoodService(
             TrainingRobot robot,
@@ -32,7 +34,7 @@ final class FoodService {
             String trainingEfficiency) {
         this.robot = robot;
         this.detectionService = detectionService;
-        this.inventoryService = inventoryService;
+        this.inventoryService = Objects.requireNonNull(inventoryService, "inventoryService");
         this.restService = restService;
         this.trainingEfficiency = trainingEfficiency;
     }
@@ -102,10 +104,16 @@ final class FoodService {
         if (canStomachAcceptFood() && canIntestineAcceptFood()) {
             tapKey(KeyEvent.VK_1, 50);
             robot.safeDelay(500);
+
+            Optional<StorageItemMatch> position = inventoryService.findCaseOrFridge("case");
+            if (position.isEmpty()) {
+                return;
+            }
+            StorageItemMatch cases = position.get();
             inventoryService.ensureItemPanelPosition();
-            Color storageColor = robot.getPixelColor(475, 170);
-            if (storageColor.getRed() < 200) {
-                robot.mouseMove(430, 200);
+            Color caseColor = robot.getPixelColor(cases.screenX() - 24, cases.screenY() - 37);
+            if (caseColor.getRed() < 200) {
+                robot.mouseMove(cases.screenX(), cases.screenY());
                 robot.safeDelay(500);
                 robot.click(MouseEvent.BUTTON1_DOWN_MASK);
                 robot.safeDelay(100);
@@ -142,9 +150,9 @@ final class FoodService {
             }
             inventoryService.moveWaterBackToStorage(0);
             robot.safeDelay(500);
-            if (robot.getDelayedPixelColor(448, 80).getRed() > 90) {
-                inventoryService.moveExtraWaterBackToStorage(0);
-            }
+//            if (robot.getDelayedPixelColor(448, 80).getRed() > 90) {
+//                inventoryService.moveExtraWaterBackToStorage(0);
+//            }
         }
         robot.safeDelay(500);
         robot.tabSwitch();

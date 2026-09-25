@@ -9,6 +9,8 @@ import java.awt.Color;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
 /** Owns inventory positioning and the storage/hand water-container transfers. */
 final class InventoryService {
@@ -82,11 +84,17 @@ final class InventoryService {
         if (tryTimes > 20) {
             return;
         }
+        Optional<StorageItemMatch> position = findCaseOrFridge("case");
+        if (position.isEmpty()) {
+            return;
+        }
+        StorageItemMatch fridge = position.get();
+
         robot.mouseMove(865, 135);
         robot.safeDelay(500);
         robot.mousePress(MouseEvent.BUTTON1_DOWN_MASK);
         robot.safeDelay(500);
-        robot.mouseMove(400, 80);
+        robot.mouseMove(fridge.screenX(), fridge.screenY());
         robot.safeDelay(500);
         robot.mouseRelease(MouseEvent.BUTTON1_DOWN_MASK);
         robot.safeDelay(500);
@@ -115,6 +123,28 @@ final class InventoryService {
             System.out.println(LocalDateTime.now()
                     + "从物品栏移动到箱子失败，重试，重试次数：" + tryTimes);
             moveExtraWaterBackToStorage(tryTimes + 1);
+        }
+    }
+
+    Optional<StorageItemMatch> findCaseOrFridge(String type)
+            throws InterruptedException {
+        ensureItemPanelPosition();
+        try {
+            List<StorageItemMatch> matches = detectionService.detectStorageItemsOnce();
+            if (matches.isEmpty()) {
+                System.out.println("未识别到满足匹配度要求的箱子或冰箱");
+            }
+            for (StorageItemMatch match : matches) {
+                System.out.printf(
+                        "STORAGE_ITEM -> type=%s similarity=%.3f x=%d y=%d%n",
+                        match.type(), match.similarity(), match.screenX(), match.screenY());
+            }
+            return matches.stream().filter(match -> type.equals(match.type())).findFirst();
+        } catch (InterruptedException e) {
+            throw e;
+        } catch (Exception e) {
+            System.err.println("识别箱子或冰箱失败: " + e.getMessage());
+            return Optional.empty();
         }
     }
 }

@@ -67,8 +67,6 @@ public class TrainingWorker extends Thread {
             restService = new RestService(robot, recoveryTime, restType);
             repairService = new RepairService(robot, detectionService);
             inventoryService = new InventoryService(robot, detectionService);
-            foodService = new FoodService(
-                    robot, detectionService, inventoryService, restService, trainingEfficiency);
             storageService = new StorageService(
                     robot,
                     detectionService,
@@ -77,8 +75,11 @@ public class TrainingWorker extends Thread {
                     timePerHit,
                     enableAutoCaffeine,
                     foodStroageIntoFridge);
+            foodService = new FoodService(
+                    robot, detectionService, inventoryService, restService,
+                    trainingEfficiency);
             cookedFoodReplenishmentService = new CookedFoodReplenishmentService(
-                    robot, detectionService, storageService);
+                    robot, detectionService, inventoryService);
             running = true;
             runTrainingLoop();
         } catch (InterruptedException e) {
@@ -137,11 +138,11 @@ public class TrainingWorker extends Thread {
             releaseKeys();
             restService.standUp(i);//站立
             repairService.repairGloves(i);//修手套、鞋子
-            if (enableAutoEat) {
-                foodService.checkAndEat();//吃饭
-            }
             if (foodStroageIntoFridge) {
                 cookedFoodReplenishmentService.replenishIfNeeded();//检测是否需要补充食物
+            }
+            if (enableAutoEat) {
+                foodService.checkAndEat();//吃饭
             }
             foodService.handleRequiredRest();//强制休息
             ensureRunning();

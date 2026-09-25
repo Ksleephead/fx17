@@ -9,29 +9,30 @@ import java.awt.Color;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /** Checks the quick slots and replenishes cooked food from the fridge. */
 final class CookedFoodReplenishmentService {
     private final TrainingRobot robot;
     private final TrainingDetectionService detectionService;
-    private final StorageService storageService;
+    private final InventoryService inventoryService;
 
     CookedFoodReplenishmentService(TrainingRobot robot,
                                    TrainingDetectionService detectionService,
-                                   StorageService storageService) {
+                                   InventoryService inventoryService) {
         this.robot = robot;
         this.detectionService = detectionService;
-        this.storageService = storageService;
+        this.inventoryService = Objects.requireNonNull(inventoryService, "inventoryService");
     }
 
     void replenishIfNeeded() throws Exception {
         robot.tabSwitch();
-        robot.safeDelay(500);
+        robot.safeDelay(200);
         robot.keyPress(KeyEvent.VK_1);
         robot.safeDelay(50);
         robot.keyRelease(KeyEvent.VK_1);
-        robot.safeDelay(500);
+        robot.safeDelay(300);
 
         // 4号快捷键状态豆消失表示烤玉米耗尽；9号快捷键暂存烤鱼。
         boolean needCorn = robot.getPixelColor(838, 671).getGreen() < 150;
@@ -43,7 +44,7 @@ final class CookedFoodReplenishmentService {
     }
 
     private void replenishFromFridge(boolean needFish, boolean needCorn) throws Exception {
-        Optional<StorageItemMatch> position = storageService.findCaseOrFridge("fridge");
+        Optional<StorageItemMatch> position = inventoryService.findCaseOrFridge("fridge");
         if (position.isEmpty()) {
             return;
         }
@@ -59,19 +60,19 @@ final class CookedFoodReplenishmentService {
 
         robot.mouseMove(625, 252);
         robot.click(InputEvent.BUTTON1_DOWN_MASK);
-        robot.safeDelay(300);
+        robot.safeDelay(1000);
         robot.mouseMove(0, 0);
         robot.safeDelay(300);
 
         if (needFish) {
-            clickFirstMatch(detectionService.detectCookedFishOnce(), "烤鱼", 300);
+            clickFirstMatch(detectionService.detectCookedFishOnce(), "烤鱼");
         }
         if (needCorn) {
-            clickFirstMatch(detectionService.detectCookedCornOnce(), "烤玉米", 800);
+            clickFirstMatch(detectionService.detectCookedCornOnce(), "烤玉米");
         }
     }
 
-    private void clickFirstMatch(List<ScreenTemplateMatch> matches, String itemName, long delay)
+    private void clickFirstMatch(List<ScreenTemplateMatch> matches, String itemName)
             throws InterruptedException {
         if (matches == null || matches.isEmpty()) {
             return;
@@ -79,8 +80,9 @@ final class CookedFoodReplenishmentService {
         System.out.println("识别到" + itemName + "个数：" + matches.size());
         ScreenTemplateMatch match = matches.get(0);
         robot.mouseMove(match.screenX(), match.screenY());
-        robot.safeDelay(delay);
+        robot.safeDelay(500);
         doubleClick();
+        robot.safeDelay(500);
     }
 
     private void doubleClick() throws InterruptedException {
