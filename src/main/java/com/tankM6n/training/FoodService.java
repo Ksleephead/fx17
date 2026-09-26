@@ -54,7 +54,7 @@ final class FoodService {
         robot.ensureRunning();
         boolean intestine = canIntestineAcceptFood();
         boolean stomach = canStomachAcceptFood();
-        boolean lowAtNinetyPercent = isEnergyBelowNinetyPercent();
+        boolean lowAtFivetyPercent = isEnergyBelowFivetyPercent();
         boolean lowAtTwentyPercent = isEnergyBelowTwentyPercent();
         boolean proteinLow = isProteinLow();
         boolean waterLow = isWaterLow();
@@ -65,8 +65,8 @@ final class FoodService {
         robot.safeDelay(500);
 
         if (stomach && intestine) {
-            if ("效率优先".equals(trainingEfficiency) || lowAtNinetyPercent) {
-                System.out.println(stomach + "" + intestine + lowAtNinetyPercent
+            if ("效率优先".equals(trainingEfficiency) || lowAtFivetyPercent) {
+                System.out.println(stomach + "" + intestine + lowAtFivetyPercent
                         + trainingEfficiency + LocalDateTime.now());
                 eatFromHotbar();
             }
@@ -238,8 +238,8 @@ final class FoodService {
         return robot.getDelayedPixelColor(956, 37).getBlue() < 55;
     }
 
-    private boolean isEnergyBelowNinetyPercent() {
-        if (robot.getDelayedPixelColor(740, 35).getBlue() > 60) {
+    private boolean isEnergyBelowFivetyPercent() {
+        if (robot.getDelayedPixelColor(762, 101).getBlue() > 60) {
             System.out.println(LocalDateTime.now() + "能量充足");
             return false;
         }
@@ -247,7 +247,9 @@ final class FoodService {
     }
 
     private boolean isEnergyBelowTwentyPercent() {
-        if (robot.getDelayedPixelColor(783, 38).getBlue() > 60) {
+        if (robot.getDelayedPixelColor(783, 36).getBlue() > 60
+            ||robot.getDelayedPixelColor(783, 37).getBlue() > 60
+            ||robot.getDelayedPixelColor(783, 38).getBlue() > 60) {
             System.out.println(LocalDateTime.now() + "能量充足");
             return false;
         }
