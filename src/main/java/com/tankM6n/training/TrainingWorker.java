@@ -72,11 +72,11 @@ public class TrainingWorker extends Thread {
                     executor,
                     timePerHit,
                     enableAutoCaffeine);
-            foodService = new FoodService(
-                    robot, detectionService, inventoryService, restService,
-                    trainingEfficiency);
             cookedFoodReplenishmentService = new CookedFoodReplenishmentService(
                     robot, detectionService, inventoryService);
+            foodService = new FoodService(
+                    robot, detectionService, inventoryService, restService,
+                    trainingEfficiency, cookedFoodReplenishmentService);
             running = true;
             runTrainingLoop();
         } catch (InterruptedException e) {

@@ -23,6 +23,7 @@ final class FoodService {
     private final TrainingDetectionService detectionService;
     private final InventoryService inventoryService;
     private final RestService restService;
+    private final CookedFoodReplenishmentService cookedFoodReplenishmentService;
     private final String trainingEfficiency;
     private static volatile String restRequirement = "Unnecessary";
 
@@ -30,13 +31,14 @@ final class FoodService {
             TrainingRobot robot,
             TrainingDetectionService detectionService,
             InventoryService inventoryService,
-            RestService restService,
-            String trainingEfficiency) {
+            RestService restService, String trainingEfficiency,
+            CookedFoodReplenishmentService cookedFoodReplenishmentService) {
         this.robot = robot;
         this.detectionService = detectionService;
         this.inventoryService = Objects.requireNonNull(inventoryService, "inventoryService");
         this.restService = restService;
         this.trainingEfficiency = trainingEfficiency;
+        this.cookedFoodReplenishmentService = cookedFoodReplenishmentService;
     }
 
     void checkAndEat() throws InterruptedException {
@@ -164,6 +166,8 @@ final class FoodService {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(() -> {
             try {
+                cookedFoodReplenishmentService.replenishIfNeeded();//检测是否需要补充食物
+
                 robot.ensureRunning();
                 robot.tabSwitch();
                 tapKey(KeyEvent.VK_4, 50);
@@ -173,11 +177,11 @@ final class FoodService {
                 boolean energyLow = true;
                 boolean proteinLow = true;
 
-                if (robot.getDelayedPixelColor(751, 30).getBlue() > 90) {
+                if (!isEnergyBelowFivetyPercent()) {
                     System.out.println(LocalDateTime.now() + "能量充足");
                     energyLow = false;
                 }
-                if (robot.getDelayedPixelColor(700, 150).getBlue() > 90) {
+                if (robot.getDelayedPixelColor(700, 160).getBlue() > 90) {
                     System.out.println(LocalDateTime.now() + "蛋白质充足");
                     proteinLow = false;
                 }
