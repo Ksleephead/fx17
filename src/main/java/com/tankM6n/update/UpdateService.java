@@ -22,7 +22,7 @@ public final class UpdateService {
     public static final String UPDATE_URL =
             "https://raw.giteeusercontent.com/ksleephead/scum-fx17-update/raw/master/latest.json";
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
-    private static final Duration GITHUB_TIMEOUT = Duration.ofSeconds(25);
+    private static final Duration GITHUB_TIMEOUT = Duration.ofSeconds(4);
     public static final String GITHUB_UPDATE_URL =
             "https://raw.githubusercontent.com/Ksleephead/fx17/refs/heads/main/src/main/resources/latest.json";
     public static final String GITCODE_UPDATE_URL =
@@ -34,8 +34,12 @@ public final class UpdateService {
 
     record UpdateSource(URI uri, Duration timeout) { }
 
+    public enum CheckStatus { UPDATE_AVAILABLE, UP_TO_DATE, FAILED }
+
+    public record CheckResult(CheckStatus status, UpdateInfo updateInfo) { }
+
     public UpdateService() {
-        this(HttpClient.newBuilder().connectTimeout(TIMEOUT)
+        this(HttpClient.newBuilder().connectTimeout(GITHUB_TIMEOUT)
                         .followRedirects(HttpClient.Redirect.NORMAL).build(),
                 new ObjectMapper(), List.of(
                         new UpdateSource(URI.create(UPDATE_URL), TIMEOUT),
@@ -54,6 +58,10 @@ public final class UpdateService {
     }
 
     public Optional<UpdateInfo> checkForUpdate() {
+        return Optional.ofNullable(checkForUpdateResult().updateInfo());
+    }
+
+    public CheckResult checkForUpdateResult() {
         ConsoleLog.log("更新检查：开始检查，当前版本=" + AppVersion.CURRENT_VERSION);
         List<CompletableFuture<Optional<UpdateInfo>>> requests = new ArrayList<>();
         try {
@@ -70,9 +78,10 @@ public final class UpdateService {
             }
             if (latest != null && VersionUtils.isNewerVersion(AppVersion.CURRENT_VERSION, latest.getVersion())) {
                 ConsoleLog.log("更新检查：检测到新版本=" + latest.getVersion());
-                return Optional.of(latest);
+                return new CheckResult(CheckStatus.UPDATE_AVAILABLE, latest);
             }
             ConsoleLog.log("更新检查：" + (latest == null ? "所有更新源均不可用" : "没有更新"));
+            return new CheckResult(latest == null ? CheckStatus.FAILED : CheckStatus.UP_TO_DATE, null);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             ConsoleLog.log("更新检查：请求被中断");
@@ -81,7 +90,7 @@ public final class UpdateService {
         } finally {
             requests.forEach(request -> request.cancel(true));
         }
-        return Optional.empty();
+        return new CheckResult(CheckStatus.FAILED, null);
     }
 
     private CompletableFuture<Optional<UpdateInfo>> fetchUpdate(UpdateSource source) {

@@ -81,6 +81,12 @@ class UpdateServiceTest {
             try (var output = exchange.getResponseBody()) { output.write(body); }
         });
         server.createContext("/failed", exchange -> { exchange.sendResponseHeaders(503, -1); exchange.close(); });
+        server.createContext("/current", exchange -> {
+            byte[] body = ("{\"version\":\"" + AppVersion.CURRENT_VERSION
+                    + "\",\"downloadUrl\":\"https://example.com\"}").getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            try (var output = exchange.getResponseBody()) { output.write(body); }
+        });
         server.createContext("/timeout", exchange -> {
             try { new CountDownLatch(1).await(2, TimeUnit.SECONDS); }
             catch (InterruptedException exception) { Thread.currentThread().interrupt(); }
@@ -94,6 +100,16 @@ class UpdateServiceTest {
                             path.equals("timeout") ? Duration.ofMillis(300) : Duration.ofSeconds(5))).toList();
             assertEquals("99.1.0", new UpdateService(HttpClient.newHttpClient(), new ObjectMapper(), sources)
                     .checkForUpdate().orElseThrow().getVersion());
+            var failedSources = sources.subList(0, 3);
+            assertEquals(UpdateService.CheckStatus.FAILED,
+                    new UpdateService(HttpClient.newHttpClient(), new ObjectMapper(), failedSources)
+                            .checkForUpdateResult().status());
+            var currentSources = List.of(sources.get(1), sources.get(2),
+                    new UpdateService.UpdateSource(URI.create(base + "/current"), Duration.ofSeconds(5)));
+            var currentResult = new UpdateService(HttpClient.newHttpClient(), new ObjectMapper(), currentSources)
+                    .checkForUpdateResult();
+            assertEquals(UpdateService.CheckStatus.UP_TO_DATE, currentResult.status());
+            assertTrue(currentResult.updateInfo() == null);
         } finally {
             server.stop(0);
             executor.shutdownNow();

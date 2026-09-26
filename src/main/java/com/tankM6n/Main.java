@@ -110,6 +110,10 @@ public class Main extends Application {
 
     // Retain the JavaFX player while a short notification is playing.
     private MediaPlayer notificationPlayer;
+    private Button checkUpdateButton;
+    private boolean updateCheckInProgress;
+    private long lastUpdateCheckMillis;
+    private static final long UPDATE_CHECK_INTERVAL_MILLIS = TimeUnit.HOURS.toMillis(12);
 
     private final ExecutorService updateExecutor = Executors.newSingleThreadExecutor(task -> {
         Thread thread = new Thread(task, "update-check");
@@ -392,6 +396,12 @@ public class Main extends Application {
         stopButton.setPrefWidth(150);
         stopButton.setOnAction(event -> stopTrainingManually());
 
+        checkUpdateButton = new Button("检查更新");
+        checkUpdateButton.setLayoutX(340);
+        checkUpdateButton.setLayoutY(575);
+        checkUpdateButton.setPrefWidth(150);
+        checkUpdateButton.setOnAction(event -> checkForUpdatesAsync(true));
+
         Label trainingDurationLabel = new Label("已炼体时长：");
         trainingDurationLabel.setLayoutX(20);
         trainingDurationLabel.setLayoutY(305);
@@ -414,11 +424,11 @@ public class Main extends Application {
                 trainingEfficiencyLabel, trainingEfficiencyComboBox,
                 cookingTypeLabel, cookingTypeComboBox,
                 cornCookCountLabel, cornCookCountComboBox,
-                editSaveButton, startButton, stopButton,
+                editSaveButton, startButton, stopButton, checkUpdateButton,
                 trainingDurationLabel, trainingDurationField);
 
         // 设置场景和舞台
-        Scene scene = new Scene(root, 500, 600);
+        Scene scene = new Scene(root, 500, 620);
         primaryStage.setTitle("SCUM创可贴免费炼体器(作者：GorphynMars)");
         primaryStage.setScene(scene);
 
@@ -434,26 +444,65 @@ public class Main extends Application {
 
         primaryStage.show();
         hotkeyService.start();
-        checkForUpdatesAsync();
+        checkForUpdatesAsync(false);
     }
 
-    private void checkForUpdatesAsync() {
+    private void checkForUpdatesAsync(boolean manual) {
+        if (updateCheckInProgress) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        // 时间回拨或配置时间在未来时，从当前时间重新计算间隔。
+        if (manual && lastUpdateCheckMillis > now) {
+            lastUpdateCheckMillis = now;
+            saveConfig();
+        }
+        long elapsed = now - lastUpdateCheckMillis;
+        if (manual && lastUpdateCheckMillis > 0 && elapsed < UPDATE_CHECK_INTERVAL_MILLIS) {
+            showUpdateMessage(Alert.AlertType.INFORMATION, "检查更新", "当前已是最新版本。");
+            return;
+        }
+        lastUpdateCheckMillis = now;
+        saveConfig();
+        updateCheckInProgress = true;
         updateExecutor.execute(() -> {
+            UpdateService.CheckResult result;
             try {
-                new UpdateService().checkForUpdate().ifPresent(updateInfo ->
-                        Platform.runLater(() -> {
-                            try {
-                                UpdateDialog.show(mainStage, getHostServices(), updateInfo);
-                            } catch (RuntimeException exception) {
-                                ConsoleLog.log("更新提示：显示更新窗口失败，" + exception.getMessage());
-                            }
-                        }));
+                result = new UpdateService().checkForUpdateResult();
             } catch (RuntimeException exception) {
                 ConsoleLog.log("更新检查：后台任务失败，" + exception.getMessage());
-            } finally {
-                updateExecutor.shutdown();
+                result = new UpdateService.CheckResult(UpdateService.CheckStatus.FAILED, null);
             }
+            UpdateService.CheckResult completed = result;
+            Platform.runLater(() -> {
+                try {
+                    if (!mainStage.isShowing()) {
+                        return;
+                    }
+                    switch (completed.status()) {
+                        case UPDATE_AVAILABLE -> UpdateDialog.show(mainStage, getHostServices(), completed.updateInfo());
+                        case UP_TO_DATE -> {
+                            if (manual) showUpdateMessage(Alert.AlertType.INFORMATION, "检查更新", "当前已是最新版本。");
+                        }
+                        case FAILED -> {
+                            if (manual) showUpdateMessage(Alert.AlertType.WARNING, "检查更新失败", "检查更新失败，请稍后重试。");
+                        }
+                    }
+                } catch (RuntimeException exception) {
+                    ConsoleLog.log("更新提示：显示更新窗口失败，" + exception.getMessage());
+                } finally {
+                    updateCheckInProgress = false;
+                }
+            });
         });
+    }
+
+    private void showUpdateMessage(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type, content, ButtonType.OK);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.initOwner(mainStage);
+        alert.showAndWait();
     }
 
     /**
@@ -557,6 +606,7 @@ public class Main extends Application {
         // Codex生成：加载已保存的服务器重启间隔。
         serverRestartInterval = config.getServerRestartInterval();
         accumulatedTrainingMillis = config.getAccumulatedTrainingMillis();
+        lastUpdateCheckMillis = config.getLastUpdateCheckMillis();
 
         updateUIFromConfig();
         updateTrainingDurationDisplay();
@@ -580,6 +630,7 @@ public class Main extends Application {
         // Codex生成：把服务器重启间隔写入配置对象。
         config.setServerRestartInterval(serverRestartInterval);
         config.setAccumulatedTrainingMillis(getCurrentTrainingDurationMillis());
+        config.setLastUpdateCheckMillis(lastUpdateCheckMillis);
 
         configService.save(config);
     }
@@ -633,6 +684,7 @@ public class Main extends Application {
      * 窗口关闭事件处理
      */
     private void handleWindowClose(WindowEvent event) {
+        updateExecutor.shutdownNow();
         cookingService.stop();
         stopTraining(); // 确保线程停止
         hotkeyService.close();

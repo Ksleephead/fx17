@@ -15,6 +15,7 @@ public class AppConfig {
     private String trainingEfficiency = "效率优先";
     private String serverRestartTime = "12";
     private long accumulatedTrainingMillis;
+    private long lastUpdateCheckMillis;
     // Codex生成：服务器每次重启完成后，用该间隔计算下一次重启时间。
     private String serverRestartInterval = "0";
 
@@ -110,6 +111,14 @@ public class AppConfig {
 
     public long getAccumulatedTrainingMillis() {
         return accumulatedTrainingMillis;
+    }
+
+    public long getLastUpdateCheckMillis() {
+        return lastUpdateCheckMillis;
+    }
+
+    public void setLastUpdateCheckMillis(long lastUpdateCheckMillis) {
+        this.lastUpdateCheckMillis = Math.max(0L, lastUpdateCheckMillis);
     }
 
     public void setAccumulatedTrainingMillis(long accumulatedTrainingMillis) {

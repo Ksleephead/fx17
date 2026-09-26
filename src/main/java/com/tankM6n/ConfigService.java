@@ -33,6 +33,8 @@ public class ConfigService {
         config.setServerRestartTime(prop.getProperty("serverRestartTime", "12"));
         config.setAccumulatedTrainingMillis(parseNonNegativeLong(
                 prop.getProperty("accumulatedTrainingMillis", "0")));
+        config.setLastUpdateCheckMillis(parseNonNegativeLong(
+                prop.getProperty("lastUpdateCheckMillis", "0")));
         // Codex生成：读取重启间隔；兼容没有该字段的旧配置。
         config.setServerRestartInterval(prop.getProperty("serverRestartInterval", "6"));
 
@@ -55,6 +57,7 @@ public class ConfigService {
         prop.setProperty("serverRestartTime", valueOrDefault(config.getServerRestartTime(), "12"));
         prop.setProperty("accumulatedTrainingMillis",
                 Long.toString(config.getAccumulatedTrainingMillis()));
+        prop.setProperty("lastUpdateCheckMillis", Long.toString(config.getLastUpdateCheckMillis()));
         // Codex生成：保存服务器重启间隔，供下次启动程序时继续使用。
         prop.setProperty("serverRestartInterval", valueOrDefault(config.getServerRestartInterval(), "0"));
 
