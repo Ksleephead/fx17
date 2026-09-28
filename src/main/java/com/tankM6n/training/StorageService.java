@@ -162,142 +162,30 @@ final class StorageService {
         return new DestroyResult(currentCoffeeEdge, nextHitIndex);
     }
     /**
-     * 先按提示框内的红绿文字决定是否需要等待，再比较绿色文字的变化。
-     * 无绿字（仅红字、无红绿字或未找到提示框）立即返回 true；有绿字则在
-     * 10 秒内每 2 秒采样一次，相邻采样累计至少两次不同才返回 true。
+     * Locate the improve label once, then compare five consecutive two-second samples
+     * in the 20-pixel strip to the right of its center.
      */
-    public boolean coffeeDoubleCheckAreaChanged() throws InterruptedException {
-        // 覆盖三张截图中提示框可能达到的宽高；下方会在此范围内寻找实际边界。
-        Rectangle searchArea = new Rectangle(348, 476, 140, 120);
-        CoffeeTooltipFrame previous = analyzeCoffeeTooltip(
-                robot.createScreenCapture(searchArea));
-        if (previous.box() != null) {
-            showCoffeeTooltipCorners(searchArea, previous.box());
-
-            previous = analyzeCoffeeTooltip(robot.createScreenCapture(searchArea));
-        }
-
-        // 无绿字的两种情况均按需求直接返回 true，红字只用于区分日志。
-        if (!previous.hasGreen()) {
-            System.out.println(previous.hasRed()
-                    ? "咖啡提示框仅有红色异常文字"
-                    : "咖啡提示框没有红色或绿色文字");
+    public boolean coffeeDoubleCheckAreaChanged() throws Exception {
+        ScreenTemplateMatch improve = detectionService.detectImproveOnce();
+        if (improve == null) {
             return true;
         }
-        if (previous.hasRed()) {
-            System.out.println("咖啡提示框同时有红色和绿色文字，仅统计绿色文字变化");
-        } else {
-            System.out.println("咖啡提示框仅有绿色文字，检测其变化");
-        }
 
+        Rectangle monitoredArea = new Rectangle(
+                improve.screenX() + 23, improve.screenY() - 4, 30, 9);
+        System.out.println("提升能量:" + improve.screenX() + "/" + improve.screenY());
+        BufferedImage previous = robot.createScreenCapture(monitoredArea);
         int changeCount = 0;
         for (int sample = 0; sample < 5; sample++) {
             robot.safeDelay(2_000);
-            CoffeeTooltipFrame current = analyzeCoffeeTooltip(
-                    robot.createScreenCapture(searchArea));
-            if (!current.hasGreen()) {
-                return true;
-            }
-            // greenText 是同尺寸的黑底图，仅保留绿字的原始 RGB 和屏幕位置。
-            // 因此红字、背景和由红字导致的方框宽高变化都不会产生差异。
-            // previous 每轮更新，所以比较对象是前两秒的截图，而不是最初截图。
-            if (!imagesAreEqual(previous.greenText(), current.greenText())) {
+            BufferedImage current = robot.createScreenCapture(monitoredArea);
+            if (!imagesAreEqual(previous, current)) {
                 changeCount++;
             }
             previous = current;
         }
-        System.out.println("绿色文字在10秒内变化次数: " + changeCount);
-        return changeCount >= 2;
-    }
-
-    private void showCoffeeTooltipCorners(Rectangle searchArea, Rectangle box)
-            throws InterruptedException {
-        int left = searchArea.x + box.x;
-        int top = searchArea.y + box.y;
-        int right = left + box.width - 1;
-        int bottom = top + box.height - 1;
-        System.out.printf("咖啡提示框角点: 左上=(%d,%d) 右下=(%d,%d)%n",
-                left, top, right, bottom);
-        robot.safeDelay(500);
-    }
-
-    /** 定位提示框并提取绿字；用于比较的图像始终保持搜索区域的固定尺寸。 */
-    static CoffeeTooltipFrame analyzeCoffeeTooltip(BufferedImage screenshot) {
-        Rectangle box = findCoffeeTooltipBox(screenshot);
-        BufferedImage greenText = new BufferedImage(
-                screenshot.getWidth(), screenshot.getHeight(), BufferedImage.TYPE_INT_RGB);
-        if (box == null) {
-            // 边框未出现时按“没有红绿文字”处理。
-            return new CoffeeTooltipFrame(null, false, false, greenText);
-        }
-
-        int greenCount = 0;
-        int redCount = 0;
-        // 只扫描动态边框的内部，排除顶边、左边及右下角的亮色边缘。
-        for (int y = box.y + 3; y < box.y + box.height - 1; y++) {
-            for (int x = box.x + 2; x < box.x + box.width - 2; x++) {
-                int rgb = screenshot.getRGB(x, y);
-                int red = (rgb >>> 16) & 0xff;
-                int green = (rgb >>> 8) & 0xff;
-                int blue = rgb & 0xff;
-                // 文字需有最低亮度且主色明显强于另外两色，暗色背景不计入。
-                if (green >= 40 && green - red >= 10 && green - blue >= 5) {
-                    greenCount++;
-                    greenText.setRGB(x, y, rgb);
-                } else if (red >= 40 && red - green >= 10 && red - blue >= 8) {
-                    redCount++;
-                }
-            }
-        }
-        // 至少 8 个同类像素才认为有字；参考截图中实际文字有数百个像素。
-        return new CoffeeTooltipFrame(box, greenCount >= 8, redCount >= 8, greenText);
-    }
-
-    /** 在预期位置找亮色水平顶边，并用它左侧的竖边确定实际高度。 */
-    private static Rectangle findCoffeeTooltipBox(BufferedImage screenshot) {
-        // 搜索区域从屏幕 (348,476) 开始；顶边在其左上角附近（样本约为 y=482）。
-        for (int y = 0; y < Math.min(20, screenshot.getHeight()); y++) {
-            for (int x = 2; x < Math.min(16, screenshot.getWidth()); x++) {
-                if (!isCoffeeTooltipBorder(screenshot.getRGB(x, y))) {
-                    continue;
-                }
-                int right = x;
-                while (right < screenshot.getWidth()
-                        && isCoffeeTooltipBorder(screenshot.getRGB(right, y))) {
-                    right++;
-                }
-                // 连续亮线至少 70 像素，避免把单个亮字或游戏背景当成顶边。
-                if (right - x < 70 || x == 0) {
-                    continue;
-                }
-                int left = x - 1;
-                int bottom = y + 1;
-                // 样本中顶边左侧一像素是连续竖边；其终点就是提示框底部。
-                while (bottom < screenshot.getHeight()
-                        && isCoffeeTooltipBorder(screenshot.getRGB(left, bottom))) {
-                    bottom++;
-                }
-                if (bottom - y >= 25) {
-                    // right/bottom 是边界后一像素，Rectangle 的宽高随提示框变化。
-                    return new Rectangle(left, y, right - left, bottom - y);
-                }
-            }
-        }
-        return null;
-    }
-
-    /** 边框是亮灰色：三个通道均至少 48，最大与最小通道相差不超过 20。 */
-    private static boolean isCoffeeTooltipBorder(int rgb) {
-        int red = (rgb >>> 16) & 0xff;
-        int green = (rgb >>> 8) & 0xff;
-        int blue = rgb & 0xff;
-        return red >= 48 && green >= 48 && blue >= 48
-                && Math.max(red, Math.max(green, blue))
-                - Math.min(red, Math.min(green, blue)) <= 20;
-    }
-
-    record CoffeeTooltipFrame(
-            Rectangle box, boolean hasGreen, boolean hasRed, BufferedImage greenText) {
+        System.out.println("提升区域10秒内变化次数: " + changeCount);
+        return changeCount >= 3;
     }
 
     public void moveMouseCoffeeInfo() {

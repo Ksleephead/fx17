@@ -24,6 +24,8 @@ final class TrainingDetectionService {
     private RegionTemplateDetector repairDetector;
     private RegionDetectorConfig drinkOnceConfig;
     private RegionTemplateDetector drinkOnceDetector;
+    private RegionDetectorConfig improveConfig;
+    private RegionTemplateDetector improveDetector;
     private RegionDetectorConfig caseConfig;
     private RegionTemplateDetector caseDetector;
     private RegionDetectorConfig fridgeConfig;
@@ -63,6 +65,18 @@ final class TrainingDetectionService {
                 drinkOnceDetector,
                 drinkOnceConfig.resultOffsetX(),
                 drinkOnceConfig.resultOffsetY());
+    }
+
+    ScreenTemplateMatch detectImproveOnce() throws Exception {
+        if (improveDetector == null) {
+            improveConfig = RegionDetectorConfig.load(
+                    Path.of("nearby-item-detector.properties"), "improve");
+            improveDetector = detector(improveConfig);
+        }
+        return adjustedBest(
+                improveDetector,
+                improveConfig.resultOffsetX(),
+                improveConfig.resultOffsetY());
     }
 
     List<StorageItemMatch> detectStorageItemsOnce() throws Exception {
