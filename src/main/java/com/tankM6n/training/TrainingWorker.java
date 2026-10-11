@@ -168,12 +168,12 @@ public class TrainingWorker extends Thread {
         robot.keyRelease(KeyEvent.VK_T);
         safeDelay(300);
         //切屏完成开始训练前，先检测聊天是否静音
-        Color chatColor = robot.getDelayedPixelColor(52, 347);
+        Color chatColor = robot.getDelayedPixelColor(108, 355);
         if (chatColor.getRed() < 100 && chatColor.getGreen() < 100 && chatColor.getBlue() < 100) {
             //未静音状态
-            robot.mouseMove(32,353);
+            robot.mouseMove(96,355);
             safeDelay(10);
-            robot.mouseMove(32,356);
+            robot.mouseMove(96,356);
             safeDelay(300);
             robot.click(InputEvent.BUTTON1_DOWN_MASK);
             safeDelay(300);
