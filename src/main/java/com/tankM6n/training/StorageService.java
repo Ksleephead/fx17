@@ -26,7 +26,7 @@ final class StorageService {
     private final InventoryService inventoryService;
     private final ExecutorService executor;
     private final double timePerHit;
-    private double detectTimeGap = 2.5;
+    private double detectTimeGap = 1;
     private final boolean autoCaffeine;
 
     private int lastCoffeeEdge;
@@ -100,7 +100,7 @@ final class StorageService {
         if (hit < 3) {
             robot.safeDelay(Math.max(1L, Math.round(timePerHit * 1_000.0)));
         } else if (lastDestroyTime == 0 || hit == 3) {
-            detectLastDestroyTime(hit);
+            detectLastDestroyTime();
         } else {
             System.out.println("使用检测最后一次砸箱子时间" + lastDestroyTime
                     + "/" + LocalDateTime.now());
@@ -320,10 +320,11 @@ final class StorageService {
         return inventoryService.findCaseOrFridge(type);
     }
 
-    private void detectLastDestroyTime(int hit) throws InterruptedException {
+    private void detectLastDestroyTime() throws InterruptedException {
         long startedAt = System.currentTimeMillis();
         Rectangle monitoredArea = new Rectangle(128, 317, 30, 7);
         BufferedImage previousImage = robot.createScreenCapture(monitoredArea);
+        int consecutiveStableDetections = 1;
         long comparisonStartedAt = System.nanoTime();
         long limit = TimeUnit.MILLISECONDS.toNanos(
                 Math.max(1L, Math.round(timePerHit * 1_000.0)));
@@ -341,7 +342,9 @@ final class StorageService {
                 break;
             }
             BufferedImage currentImage = robot.createScreenCapture(monitoredArea);
-            if (imagesAreEqual(previousImage, currentImage)) {
+            consecutiveStableDetections = imagesAreEqual(previousImage, currentImage)
+                    ? consecutiveStableDetections + 1 : 1;
+            if (consecutiveStableDetections >= 3) {
                 System.out.println("检测区域已稳定，停止运行" + LocalDateTime.now());
                 if (lastDestroyTime == 0) {
                     lastDestroyTime = (int) (Math.floor(
@@ -355,7 +358,7 @@ final class StorageService {
                         + "/" + LocalDateTime.now());
                 break;
             }
-            System.out.println("检测区域仍在变化，继续等待" + LocalDateTime.now());
+            System.out.println("检测区域尚未连续3次保持不变，继续等待" + LocalDateTime.now());
             previousImage = currentImage;
         }
     }
