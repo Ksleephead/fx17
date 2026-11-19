@@ -1,7 +1,7 @@
 {
-  "version": "1.6.11",
-  "downloadUrl": "https://pan.baidu.com/s/1T3Jv9RMGcXnGl-j6vLWhoQ?pwd=9aai",
-  "extractCode": "9aai",
-  "description": "修复了游戏更新后聊天框位置移动导致无法正确静音聊天的bug",
+  "version": "1.6.12",
+  "downloadUrl": "https://pan.baidu.com/s/1LXbicHiwupCMhJFSG3Yg-g?pwd=t9s9",
+  "extractCode": "t9s9",
+  "description": "稳定性更新",
   "forceUpdate": false
 }
