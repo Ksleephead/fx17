@@ -97,9 +97,9 @@ final class StorageService {
         tapKey(KeyEvent.VK_4, 50);
         Future<Integer> coffeeEdge = checkCoffeeEdge();
         Future<Boolean> coffeeContains = coffeeStatus();
-        if (hit < 3) {
+        if (hit < 2) {
             robot.safeDelay(Math.max(1L, Math.round(timePerHit * 1_000.0)));
-        } else if (lastDestroyTime == 0 || hit == 3) {
+        } else if (lastDestroyTime == 0 || hit == 2) {
             detectLastDestroyTime();
         } else {
             System.out.println("使用检测最后一次砸箱子时间" + lastDestroyTime
