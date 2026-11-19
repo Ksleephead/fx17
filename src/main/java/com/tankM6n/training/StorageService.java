@@ -344,7 +344,7 @@ final class StorageService {
             BufferedImage currentImage = robot.createScreenCapture(monitoredArea);
             consecutiveStableDetections = imagesAreEqual(previousImage, currentImage)
                     ? consecutiveStableDetections + 1 : 1;
-            if (consecutiveStableDetections >= 3) {
+            if (consecutiveStableDetections >= 4) {
                 System.out.println("检测区域已稳定，停止运行" + LocalDateTime.now());
                 if (lastDestroyTime == 0) {
                     lastDestroyTime = (int) (Math.floor(
@@ -358,7 +358,7 @@ final class StorageService {
                         + "/" + LocalDateTime.now());
                 break;
             }
-            System.out.println("检测区域尚未连续3次保持不变，继续等待" + LocalDateTime.now());
+            System.out.println("检测区域尚未连续4次保持不变，继续等待" + LocalDateTime.now());
             previousImage = currentImage;
         }
     }
