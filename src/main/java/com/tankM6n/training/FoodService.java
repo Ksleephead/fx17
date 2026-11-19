@@ -75,7 +75,8 @@ final class FoodService {
         }
         if (lowAtTwentyPercent || proteinLow || waterLow) {
             System.err.println("检测到能量或蛋白质或水分不足！，强制休息" + LocalDateTime.now());
-            restRequirement = "necessary";
+//            restRequirement = "necessary";
+            restRequirement = "null";//暂时关闭无限补充食物逻辑
         }
         if (!lowAtTwentyPercent && !proteinLow && waterLow) {
             restRequirement = "drinkWater";

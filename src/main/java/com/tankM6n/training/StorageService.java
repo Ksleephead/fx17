@@ -26,6 +26,7 @@ final class StorageService {
     private final InventoryService inventoryService;
     private final ExecutorService executor;
     private final double timePerHit;
+    private double detectTimeGap = 2.5;
     private final boolean autoCaffeine;
 
     private int lastCoffeeEdge;
@@ -326,14 +327,15 @@ final class StorageService {
         long comparisonStartedAt = System.nanoTime();
         long limit = TimeUnit.MILLISECONDS.toNanos(
                 Math.max(1L, Math.round(timePerHit * 1_000.0)));
-        for (int i = 0; i < 20; i++) {
+        int floor = (int) Math.floor(timePerHit / detectTimeGap);
+        for (int i = 0; i < floor; i++) {
             long elapsed = System.nanoTime() - comparisonStartedAt;
             if (elapsed >= limit) {
                 System.out.println("检测区域等待达到上限，继续运行" + LocalDateTime.now());
                 break;
             }
             long remainingMillis = TimeUnit.NANOSECONDS.toMillis(limit - elapsed);
-            robot.safeDelay(Math.min(2_000L, remainingMillis));
+            robot.safeDelay((long) Math.min((detectTimeGap * 1_000L), remainingMillis));
             if (System.nanoTime() - comparisonStartedAt >= limit) {
                 System.out.println("检测区域等待达到32秒上限，停止运行" + LocalDateTime.now());
                 break;
